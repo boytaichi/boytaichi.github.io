@@ -1,0 +1,17 @@
+[
+  {
+    "page": "index.html",
+    "sentence": "Total supply 8,400,000 PSRE · Emitted through rewards 0 PSRE · Cap 21,000,000 PSRE · Block 52,900,163",
+    "reason": "live strip: the four figures are read from Base at one block on every load (Token Page Spec v6 §3); the copy's numbers were the 21 Oct snapshot, never typed into the page"
+  },
+  {
+    "page": "index.html",
+    "sentence": "Want your brand on it? partnerships@prospereum.io.",
+    "reason": "Site Decision Sheet v2 row 6: partnerships@ has no MX and is not published until it exists; the page says 'Want your brand on it? See Partners & Developers.'"
+  },
+  {
+    "page": "use/index.html",
+    "sentence": "Want your brand on it? partnerships@prospereum.io.",
+    "reason": "Site Decision Sheet v2 row 6: partnerships@ has no MX and is not published until it exists; the page says 'Want your brand on it? See Partners & Developers.'"
+  }
+]

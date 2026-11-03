@@ -25,9 +25,18 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+      # Static site (site/pages): no build step, no npm install. See site/DEPLOY.md.
+      - name: Check shared nav/footer and copy drift
+        working-directory: site/pages
+        run: |
+          node scripts/stamp-chrome.mjs --check
+          node scripts/copy-drift.mjs
+          node --test token/test/token-logic.test.mjs partners/test/partners-logic.test.mjs shared/test/live-logic.test.mjs test/copy-drift.test.mjs
+      - name: Assemble Pages artifact (pages tree without tests/scripts; CNAME kept)
+        run: |
+          rsync -a --exclude 'test/' --exclude 'scripts/' --exclude 'README.md' site/pages/ dist/
+          cp public/CNAME dist/CNAME
+          find dist -type f | sort
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PSRE token — Prospereum</title>
+<meta name="description" content="PSRE supply mechanics and protocol state, read live from Base.">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">Prospereum</a>
+  <nav><a href="/">Overview</a><a href="/token/" aria-current="page">Token</a><a href="/partners/">Partners &amp; Developers</a><a href="/use/">Where you can use it</a><a href="/protocol/">Protocol</a><a href="/about/">About</a></nav>
+</header>
+
+<main>
+<h1>PSRE token</h1>
+<p class="lede">Every number on this page is read from the contracts on Base at one block, refreshed every minute. Nothing here is typed in.</p>
+<p class="snapshot" id="snapshot" data-snapshot>—</p>
+
+<section>
+<h2>Supply</h2>
+<table class="stats">
+<tr><th>Total supply</th><td><span data-v="totalSupply">—</span> PSRE</td></tr>
+<tr><th>Released through Proof of Prosperity to date</th><td><span data-v="released">—</span> PSRE</td></tr>
+<tr><th>Maximum supply, ever</th><td><span data-v="maxSupply">—</span> PSRE <small>constant in the contract</small></td></tr>
+<tr><th>Reserve remaining</th><td><span data-v="reserveRemaining">—</span> PSRE</td></tr>
+<tr><th>Reserve size</th><td><span data-v="reserveSize">—</span> PSRE <small>constant in the contract</small></td></tr>
+<tr><th>Protocol treasury</th><td><span data-v="treasury">—</span> PSRE · 2-of-3 multisig</td></tr>
+<tr><th>Team allocation</th><td><span data-v="founder">—</span> PSRE <small>held in the Founder Safe; vesting stream not yet started</small></td></tr>
+<tr><th>Maximum new PSRE in one epoch today</th><td><span data-v="scarcityCap">—</span> PSRE</td></tr>
+</table>
+</section>
+
+<section>
+<h2>Where it is used</h2>
+<table class="stats">
+<tr><th>Partners live</th><td><span data-v="partnersLive">—</span> <small title="all-time vaults created, including decommissioned">(all-time vaults created, including decommissioned: <span data-v="vaultsAllTime">—</span>)</small></td></tr>
+<tr><th>PSRE token balance in the pool (Uniswap v3, PSRE/USDC)</th><td><span data-v="poolBalance">—</span> PSRE · fee <span data-v="poolFee">—</span></td></tr>
+<tr><th>Partner share of each epoch's new PSRE</th><td><span data-v="partnerShare">—</span></td></tr>
+<tr><th>To stakers</th><td><span data-v="stakerShare">—</span></td></tr>
+<tr><th>Staker pool split (PSRE stakers / LP stakers)</th><td><span data-v="psreSplit">—</span> / <span data-v="lpSplit">—</span> <small>LP staking pool currently receives <span data-v="lpSplit">—</span></small></td></tr>
+<tr><th>PSRE staked</th><td><span data-v="staked">—</span> PSRE</td></tr>
+</table>
+<p class="muted">Partners are announced as their vaults go live.</p>
+</section>
+
+<section>
+<h2>Protocol status</h2>
+<table class="stats">
+<tr><th>Current epoch</th><td>Epoch <span data-v="epoch">—</span></td></tr>
+<tr><th>Epoch duration</th><td><span data-v="epochDuration">—</span></td></tr>
+<tr><th>Epoch window</th><td><span data-v="epochStart">—</span> to <span data-v="epochEnd">—</span></td></tr>
+<tr><th>Next epoch boundary</th><td><span data-v="epochEnd">—</span> <small id="countdown"></small></td></tr>
+<tr><th>Last finalized epoch</th><td><span data-v="lastFinalized">—</span></td></tr>
+<tr><th>Epochs awaiting finalization</th><td><span data-v="backlog">—</span> <small data-v="backlogRange"></small></td></tr>
+<tr><th>Reward engine</th><td><span data-v="engineStatus">—</span></td></tr>
+<tr><th>Token transfers</th><td><span data-v="transfers">—</span></td></tr>
+<tr><th>Upgrade scheduled</th><td><span data-v="upgrade">—</span></td></tr>
+<tr hidden><th>Parameter change queued</th><td id="queued"></td></tr>
+</table>
+<p id="statusCopy"></p>
+<p class="snapshot" data-snapshot>—</p>
+</section>
+
+<section>
+<h2>Governance</h2>
+<p>Governance and upgrades: a 2-of-3 multisig (Gnosis Safe) that owns the RewardEngine, the factory and the StakingVault. Treasury and liquidity: a 2-of-3 multisig.</p>
+<p>Four queued parameter groups — base rate, epoch ceiling, partner share, and the tier thresholds and multipliers — take effect <span data-v="paramTimelock">—</span> after they are queued, and a queued change can be cancelled before it applies.</p>
+<p>Other settings — the partner cap, the fee-tier whitelist, the entry minimum under the PSRE-native version, the staker-pool split, and pausing — are set by the Founder Safe and take effect immediately, without a timelock.</p>
+<p>Upgrades to the RewardEngine take effect <span data-v="upgradeTimelock">—</span> after they are scheduled. Under the PSRE-native version, replacing the partner-vault factory is a second step with its own, subsequent 7-day delay, so a full migration passes two timelocks in sequence. The PSRE token contract itself is not upgradeable.</p>
+<p>The 21 million cap and the 12.6 million reserve are constants in the contracts.</p>
+<p>Changes are proposed and executed by the Founder Safe under the timelocks above. No token vote exists today and there is no DAO; if that changes, it will be announced here first.</p>
+<h3>Contract addresses</h3>
+<ul id="addresses" class="addresses"></ul>
+</section>
+</main>
+
+<footer>
+<p>PSRE is a utility token used within the Prospereum protocol. This site is for informational purposes only and does not constitute financial or investment advice. Published by WealthHealth AI, Inc.</p>
+</footer>
+<script type="module" src="./token.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prospereum — Where you can use it</title>
+<meta name="description" content="Partners on Prospereum, announced as they launch. Every brand rewards its customers in the same PSRE.">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">Prospereum</a>
+  <nav><a href="/">Overview</a><a href="/token/">Token</a><a href="/partners/">Partners &amp; Developers</a><a href="/use/" aria-current="page">Where you can use it</a><a href="/protocol/">Protocol</a><a href="/about/">About</a></nav>
+</header>
+
+<main>
+<!-- Site Copy & IA v1 §2.5 "Where you can use it", verbatim. Contact address appears only if its MX exists (sheet v2 row 6); until then the Partners & Developers page is the door. -->
+<h1>Partners, announced as they launch.</h1>
+<p class="lede">Every brand on Prospereum rewards its customers in the same PSRE, so what you earned in one place works in the next. Brands appear here when their PartnerVault goes live. Want your brand on it? See <a href="/partners/">Partners &amp; Developers</a>.</p>
+
+<section data-live data-live-keys="use">
+<!-- IA v1 §1 "Live data: PartnerVault count" — read from PartnerVaultFactory at one block through the same constants and decoding as the Token page (spec v6 §4/§6). -->
+<h2>Partners on chain right now</h2>
+<p class="stats-strip"><span data-v="useStrip">—</span></p>
+<p class="snapshot" data-snapshot>—</p>
+<small>Read from the PartnerVaultFactory on Base, refreshed every 60 seconds. A vault going live by itself emits nothing and changes no number on the <a href="/token/">Token</a> page.</small>
+</section>
+
+<section id="partners">
+<h2>Live partners</h2>
+<p data-partner-list>No partner vault is live yet. The first brands appear here the week their vault goes live.</p>
+</section>
+
+<section>
+<!-- Drawn from §2.1 ("It is yours: hold it in the app, move it to your wallet, use it with other partners") and §2.6 (CustomerVault paragraph); no new claim. -->
+<h2>What a customer can do with PSRE from a brand</h2>
+<ul>
+<li><strong>Hold it in the brand's app.</strong> The balance sits in a CustomerVault created for you; nothing the brand does can take it back.</li>
+<li><strong>Move it to your own wallet.</strong> Claim the balance to a personal wallet at any time.</li>
+<li><strong>Use it with any partner.</strong> The same PSRE, every brand on the protocol.</li>
+</ul>
+<small>Plain-words definition of the token: <a href="/about/">What PSRE is</a>. How brands earn it: <a href="/protocol/">Protocol</a>.</small>
+</section>
+</main>
+
+<footer>
+<p>PSRE is a utility token used within the Prospereum protocol. This site is for informational purposes only and does not constitute financial or investment advice. Published by WealthHealth AI, Inc.</p>
+</footer>
+<script type="module" src="../shared/live.js"></script>
+</body>
+</html>

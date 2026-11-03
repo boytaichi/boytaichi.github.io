@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proof of Prosperity — Prospereum</title>
+<meta name="description" content="How PSRE is earned: new PSRE is released only when a brand's customers, together, hold more PSRE than they ever have before.">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">Prospereum</a>
+  <nav><a href="/">Overview</a><a href="/token/">Token</a><a href="/partners/">Partners &amp; Developers</a><a href="/use/">Where you can use it</a><a href="/protocol/" aria-current="page">Protocol</a><a href="/about/">About</a></nav>
+</header>
+
+<main>
+<!-- Site Copy & IA v1 §2.3 How you earn it, verbatim. -->
+<h1>Proof of Prosperity, in plain words.</h1>
+<p class="lede">Most tokens are mined by computers or printed by a team. New PSRE is released only when a brand's customers, together, hold more PSRE than they ever have before.</p>
+
+<section>
+<h2>The whole mechanism</h2>
+<ol>
+<li><strong>A brand joins</strong> by creating a PartnerVault and buying at least $500 of PSRE. That first buy earns nothing; it is the entry ticket.</li>
+<li><strong>The brand rewards its customers</strong> in PSRE on every purchase. Each customer gets a CustomerVault inside the brand's app. It feels like any rewards balance.</li>
+<li><strong>Every week the protocol takes a reading</strong> of the brand's ecosystem: PSRE in its vault plus PSRE in its customers' vaults.</li>
+<li><strong>If the reading beats the brand's all-time high,</strong> the protocol releases a small amount of new PSRE as a reward for that growth. 70% goes to the brand's customers through the partner reward; 30% goes to stakers who lock PSRE to support the network.</li>
+<li><strong>If the reading is flat or lower, nothing is released.</strong> The high-water mark stays where it was; rewards resume when growth resumes.</li>
+</ol>
+</section>
+
+<section>
+<h2>Three rules that keep it honest</h2>
+<ul>
+<li><strong>Reward PSRE never counts twice.</strong> PSRE the protocol released is excluded from future readings, so rewards cannot compound on themselves.</li>
+<li><strong>The bar only rises.</strong> Buying PSRE to fake growth means raising your own all-time high every time; the only cheap way to earn is real customers holding real rewards.</li>
+<li><strong>It gets harder.</strong> The more of the 12.6 million reserve has been released, the slower the rest comes out. The reserve opens over years, not months.</li>
+</ul>
+<p><strong>For brands:</strong> steady growth earns and keeps a higher tier (Bronze 0.8×, Silver 1.0×, Gold 1.2×) than one big buy. Rewards are claimable weekly and never expire. <strong>For customers:</strong> nothing to do; rewards reach your vault because your brand grew.</p>
+</section>
+
+<section data-live data-live-keys="protocol">
+<!-- Read-only live block: same constants, decoding and rules as the Token page (spec v6 §4/§6); nothing typed in. -->
+<h2>The protocol right now</h2>
+<p class="snapshot" data-snapshot>—</p>
+<table class="stats">
+<tr><th>Released through Proof of Prosperity to date</th><td><span data-v="emissionsLine">—</span></td></tr>
+<tr><th>Remaining reserve</th><td><span data-v="reserveRemaining">—</span> PSRE of <span data-v="reserveSize">—</span></td></tr>
+<tr><th>Protocol treasury</th><td><span data-v="treasury">—</span> PSRE · 2-of-3 multisig</td></tr>
+<tr><th>Partner reward share · staker share</th><td><span data-v="partnerShare">—</span> · <span data-v="stakerShare">—</span></td></tr>
+<tr><th>Ceiling for the current epoch</th><td><span data-v="scarcityCap">—</span> PSRE</td></tr>
+<tr><th>Partner vaults live · created all-time</th><td><span data-v="partnersLive">—</span> · <span data-v="vaultsAllTime">—</span></td></tr>
+<tr><th>PSRE staked</th><td><span data-v="staked">—</span> PSRE</td></tr>
+<tr><th>Current epoch · duration</th><td><span data-v="epoch">—</span> · <span data-v="epochDuration">—</span></td></tr>
+<tr><th>Last finalized epoch · backlog</th><td><span data-v="lastFinalized">—</span> · <span data-v="backlog">—</span></td></tr>
+<tr><th>Reward engine · token transfers</th><td><span data-v="engineStatus">—</span> · <span data-v="transfers">—</span></td></tr>
+<tr><th>Parameter timelock · upgrade timelock</th><td><span data-v="paramTimelock">—</span> · <span data-v="upgradeTimelock">—</span></td></tr>
+<tr><th>Pending upgrade</th><td><span data-v="upgrade">—</span></td></tr>
+</table>
+<small>Every number is read from the contracts on Base at one block, refreshed every minute. Full detail, allocation and contract addresses: <a href="/token/">Token</a>.</small>
+</section>
+
+<section>
+<h2>Rules nobody can change</h2>
+<p>The 21 million cap, the 12.6 million reserve, new PSRE only from verified commerce growth. Adjustable parameters (base rate, tier thresholds, weekly ceiling, minimum entry) sit behind a 48-hour timelock; upgrades behind 7 days.</p>
+</section>
+</main>
+
+<footer>
+<p>PSRE is a utility token used within the Prospereum protocol. This site is for informational purposes only and does not constitute financial or investment advice. Published by WealthHealth AI, Inc.</p>
+</footer>
+<script type="module" src="../shared/live.js"></script>
+</body>
+</html>

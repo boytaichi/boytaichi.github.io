@@ -1,0 +1,24 @@
+# prospereum.io RPC proxy — Cloudflare Worker (Site Decision Sheet v2, row 2).
+# Deployed by Jason on the prospereum.io zone; the upstream URL (with key) is a Worker SECRET, never in this file:
+#   wrangler secret put UPSTREAM_URL
+name = "prospereum-rpc"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+
+# Either a route on the site zone or a dedicated subdomain — pick one (sheet row 2: `/rpc` route or rpc.prospereum.io).
+routes = [
+  { pattern = "prospereum.io/rpc", zone_name = "prospereum.io" }
+]
+
+[vars]
+SITE_ORIGIN = "https://prospereum.io"
+UPSTREAM_NAME = "Alchemy (Base mainnet, free tier)"   # what the page shows; never the URL
+CACHE_TTL_SECONDS = "60"
+
+# Per-IP rate limit (Cloudflare rate-limiting binding). 60 requests / 10 s per IP is ample for a page that
+# refreshes once a minute with one multicall.
+[[unsafe.bindings]]
+name = "RATE_LIMITER"
+type = "ratelimit"
+namespace_id = "1001"
+simple = { limit = 60, period = 10 }

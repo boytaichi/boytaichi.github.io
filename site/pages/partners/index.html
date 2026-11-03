@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Partners &amp; Developers — Prospereum</title>
+<meta name="description" content="How a brand joins Prospereum: two vaults, one number. Contracts on Base, the partner SDK flow, and code samples.">
+<link rel="stylesheet" href="../site.css">
+<style>
+pre{background:#f4f5f7;border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow:auto;font-size:.82rem;line-height:1.45}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;word-break:break-all}
+.tag{display:inline-block;font-size:.72rem;padding:1px 6px;border:1px solid var(--line);border-radius:999px;color:var(--muted);margin-left:4px}
+table.stats td.mono{width:auto}
+ol.flow li{margin:8px 0}
+.pending{color:var(--muted);font-style:italic}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="/">Prospereum</a>
+  <nav><a href="/">Overview</a><a href="/token/">Token</a><a href="/partners/" aria-current="page">Partners &amp; Developers</a><a href="/use/">Where you can use it</a><a href="/protocol/">Protocol</a><a href="/about/">About</a></nav>
+</header>
+
+<main>
+<section id="where">
+<h1 id="headline">Partners, announced as they launch.</h1>
+<p class="lede">Every brand on Prospereum rewards its customers in the same PSRE. What you earned in one place works in the next, and a balance you move to your own wallet works anywhere on Base.</p>
+<p class="snapshot" data-snapshot>—</p>
+
+<h2>Live partners</h2>
+<p>Brands appear here the moment their PartnerVault goes live on the chain, with a link to the vault on BaseScan. Live now: <strong id="activeCount">—</strong> <small>(all-time vaults created, including decommissioned: <span id="allTime">—</span>; partner cap <span id="maxPartners">—</span>)</small></p>
+<ul id="partners" class="addresses"><li class="muted">—</li></ul>
+
+<h2>What you can already do with PSRE today</h2>
+<ul>
+<li>Hold it in the app of the brand that gave it to you; nothing expires.</li>
+<li>Claim control of your balance by naming a wallet address of your own: from then on, only you decide what happens to it. If the brand recorded your wallet address when it created your balance, you can make that claim yourself, directly on the chain. If the brand's app manages your balance with no address recorded, the brand claims it for you, naming the address you give it.</li>
+<li>Withdraw PSRE from that balance to your wallet whenever you choose. Claiming and withdrawing are two separate actions; you can claim today and withdraw next year, or never.</li>
+<li>Trade it on the open market: a PSRE/USDC pool is live on Uniswap v3 on Base (linked on the <a href="/token/">Token page</a>).</li>
+</ul>
+
+<h2>Want your brand on this page?</h2>
+<p>A partner is any business that would rather give customers a reward they keep than a discount they forget. Joining takes one PartnerVault and an entry deposit at the protocol minimum <span class="pending">[today: US$500 of USDC through the live factory; under the staged PSRE-native version: 5,000 PSRE, a PSRE amount, not a dollar figure — final wording after the architecture decision]</span>. Write to <span class="pending">[contact address pending mailbox]</span>, or read how it works below.</p>
+</section>
+
+<section id="developers">
+<h1>Two vaults, one number.</h1>
+<p><strong>The vault model in plain words.</strong> A PartnerVault is a brand's account with the protocol: a contract the brand creates once, funds, and uses to hold PSRE and hand it out as rewards. A CustomerVault is a customer's balance inside that brand's world: a small contract the brand's backend creates the first time it rewards that customer. The customer can claim control of it at any moment by naming a wallet address; that is one action. Who may make that claim depends on how the balance was created: a customer whose wallet address was recorded as the intended customer at creation may claim directly; a balance the brand's app manages, created with no intended customer (<code>address(0)</code>), can only be claimed by the brand's PartnerVault owner, on the customer's behalf and to the address the customer names. Withdrawing PSRE from it to that wallet is a second, separate action, taken whenever the customer chooses. The brand pays the gas for both vaults; the customer never needs a wallet to use the app.</p>
+<p>The protocol watches one number per brand: PSRE held in the PartnerVault plus PSRE held in all of its CustomerVaults, counted only through flows the contracts themselves track. That number has an all-time high. Every week, if the number beats its high, the protocol releases new PSRE to the brand; if it does not, nothing happens and the high stands. PSRE that leaves those contracts, whether a customer withdraws it to a personal wallet or the brand transfers it out, lowers the number but never the high. Reward PSRE the protocol itself released is excluded from the next reading, so rewards cannot feed on themselves.</p>
+<p><strong>What a brand commits to.</strong> An entry deposit at the protocol minimum, which earns nothing and sets the baseline; gas for its own vaults; and its own reward rules, which the protocol does not set. The protocol commits to a fixed cap of 21 million PSRE, a 12.6 million reserve that opens only through verified growth, a 48-hour timelock on the four queued reward-parameter groups (base rate; epoch ceiling; partner share; and the tier group of thresholds and multipliers), and a 7-day timelock on contract upgrades. Other settings — the partner cap, the fee-tier whitelist, the entry minimum under the PSRE-native version, the staker-pool split, and pausing — are set by the governance multisig without a timelock. Source verification on BaseScan is listed per contract below.</p>
+
+<h2>Contracts on Base (chain ID 8453), live since 22 April 2026</h2>
+<table class="stats" id="contracts">
+<thead><tr><th>Contract</th><th>Address</th><th>Source on BaseScan</th><th>Explorer</th></tr></thead>
+<tbody></tbody>
+</table>
+<p class="muted">Verification status per Kin's check of 21 October 2026; re-checked per contract before launch. Never read as a blanket "all verified".</p>
+
+<h2>Documents and source</h2>
+<ul>
+<li>Audit: BlockApex, 2–17 April 2026, 29 findings, all resolved before deployment. <a href="https://github.com/BlockApex/Audit-Reports/blob/master/Prospereum%20Protocol_Final%20Audit%20Report.pdf" rel="noopener">Report (PDF)</a></li>
+<li>Source: <a href="https://github.com/wealthhealthai/prospereum-protocol" rel="noopener">wealthhealthai/prospereum-protocol</a> (public; contracts, audit responses). Deployment records, mainnet and testnet: <a href="https://github.com/wealthhealthai/prospereum-protocol/blob/main/projects/prospereum/deployments.md" rel="noopener">deployments.md</a>. A versioned ABI package pinned to the live addresses is still to be published.</li>
+<li>Whitepaper v3.4 (PDF): <span class="pending">[link pending public PDF export]</span>. Partner Guide v3.4 (PDF): <span class="pending">[link pending public PDF export]</span>.</li>
+<li>Integration questions: <span class="pending">[contact address pending mailbox]</span>.</li>
+</ul>
+<!-- SDK section follows -->
+
+<h2>Partner SDK — the flow your backend runs</h2>
+<p>Written against the first real consumer: a backend that settles rewards weekly, converts the owed amount into PSRE in one tracked step per batch, and credits each recipient's CustomerVault. Calls tagged <span class="tag">USDC-live</span> are the contracts deployed on 22 April 2026 (factory <code>0xFF84…6902</code>); calls tagged <span class="tag">PSRE-native</span> are the audited post-launch source, staged and not yet on mainnet. Untagged steps are identical under both. Every signature stays provisional until the pinned ABI package is published. <strong>Decimals:</strong> PSRE 18, USDC 6.</p>
+<ol class="flow">
+<li><strong>Register</strong> — the owner key calls the factory once. <span class="tag">USDC-live</span> approve USDC to the factory (≥ 500 USDC), then <code>createVault(usdcAmountIn, minPsreOut, deadline, 10000)</code>; the PSRE received sets <code>initialCumS</code>. <span class="tag">PSRE-native</span> approve PSRE to the factory (≥ <code>psreMin()</code>), then <code>createVault(psreAmountIn)</code>. Record the vault address from <code>VaultCreated</code>; one vault per creator address; at most <code>maxPartners()</code> active vaults.</li>
+<li><strong>Fund</strong> — approval targets differ: the factory for creation, the PartnerVault for every later <code>buy</code>. Never pre-transfer USDC or PSRE to the vault: a raw transfer does not feed <code>buy()</code> and raw PSRE is ignored by <code>ecosystemBalance</code>.</li>
+<li><strong>Buy</strong> — one tracked buy per batch. <span class="tag">USDC-live</span> <code>buy(amountIn, minAmountOut, deadline, 10000)</code> → <code>psreOut</code>; fix every credit in the batch at <code>creditPSRE = owedUSDC × psreOut ÷ usdcAmountIn</code> in integer arithmetic, residue kept in the vault. <code>minAmountOut</code> is your own floor from a fresh Quoter read; pass fee <code>10000</code> only (the only live pool). <span class="tag">PSRE-native</span> acquire PSRE by any route, then <code>buy(psreAmountIn)</code>.</li>
+<li><strong>Create on first credit</strong> — <code>deployCustomerVault(partnerVault, customer)</code> with <code>customer</code> = the recipient's wallet if known, else <code>address(0)</code> (platform-managed). Store recipient id → CustomerVault; verify <code>factory.isCustomerVaultOf(cv)</code>. At most 1,000 registered CustomerVaults per PartnerVault; <code>deregisterCustomerVault()</code> frees a slot only for an empty vault.</li>
+<li><strong>Credit</strong> — one <code>distributeToCustomer(cv, amount)</code> per credit; there is no batch form. Persist each logical credit with its nonce, its encrypted signed raw transaction and the hash <em>before</em> broadcast, so a crash can rebroadcast it. Internal move: <code>ecosystemBalance</code> unchanged.</li>
+<li><strong>Read</strong> — show the customer the CustomerVault balance from the chain; show yourself <code>ecosystemBalance</code>, <code>cumS</code>, <code>initialCumS</code>, <code>qualified</code>, <code>owedPartner</code>, the current epoch, the last finalized epoch and the backlog.</li>
+<li><strong>Claim by the holder, then withdraw</strong> — two separate actions. Claim: <code>claimVault(newCustomer)</code> by the intended customer (if set) or by the owner; one-time, irreversible, moves no PSRE, and takes the vault out of the owner key's reach (<code>reclaimFromCV</code> works only before claim). Withdraw: the claimed customer calls <code>withdraw(amount)</code> later; present it as its own step.</li>
+<li><strong>Claim the protocol reward</strong> — after a paying epoch is finalized, the owner key calls <code>RewardEngine.claimPartnerReward(vault)</code>; the PSRE arrives in the owner wallet, not the vault. <span class="tag">PSRE-native</span> bring it back in with <code>buy(psreAmountIn)</code>; <span class="tag">USDC-live</span> there is no tracked re-entry path yet. Rewards never expire.</li>
+<li><strong>Leakage</strong> — three flows lower <code>ecosystemBalance</code>: a claimed customer's <code>withdraw</code>, your <code>transferOut</code>, and anything that moves PSRE into the StakingVault. Claim is not leakage. <code>cumS</code> never falls. Partners never call <code>reportLeakage</code>.</li>
+</ol>
+
+<h2>Reads your app needs</h2>
+<ul>
+<li><strong>Factory:</strong> <code>getAllVaults()</code> filtered by <code>vaultActive(vault)</code> for the live list; <code>activeVaultCount()</code> for the headline count; <code>vaultCount()</code> only when labelled "all-time". <code>vaultOf</code>/<code>partnerOf</code> are creation-time mappings — authorization reads <code>PartnerVault.owner()</code>.</li>
+<li><strong>PartnerVault:</strong> <code>ecosystemBalance()</code>, <code>cumS()</code>, <code>initialCumS()</code>, <code>lastEpochCumS()</code>, <code>psreBalance()</code>, <code>owner()</code>, <code>pendingOwner()</code>, <code>getCustomerVaultCount()</code>, <code>isQualified()</code>.</li>
+<li><strong>CustomerVault:</strong> <code>psreBalance()</code>, <code>customer()</code>, <code>customerClaimed()</code>, <code>intendedCustomer()</code>, <code>parentVault()</code>; cross-check with <code>PSRE.balanceOf(cv)</code>.</li>
+<li><strong>RewardEngine:</strong> <code>owedPartner(vault)</code>, <code>totalClaimed(vault)</code>, <code>qualified(vault)</code>, <code>R(vault)</code> and <code>sumR()</code> (tier is <code>R/sumR</code> against <code>silverThreshold()</code> 0.5% and <code>goldThreshold()</code> 2.0% — no tier getter), <code>currentEpochId()</code>, <code>lastFinalizedEpoch()</code>, <code>paused()</code>, <code>pendingUpgrade()</code>, <code>upgradeTimestamp()</code>. <code>RewardEngine.vaultActive(vault)</code> is the reward-activity flag, a different thing from the factory's decommission flag.</li>
+</ul>
+
+<h2>Errors your backend must handle</h2>
+<ul>
+<li><span class="tag">USDC-live</span> output below your floor reverts at the router — retry with a fresh quote, never by loosening the floor; both floor parameters must be &gt; 0; a past <code>deadline</code> reverts; <code>createVault</code> rejects fee tiers outside {100, 500, 3000, 10000}, <code>buy</code> forwards any tier to the router where a tier with no pool fails.</li>
+<li><strong>Epoch backlog and gas:</strong> <code>autoFinalizeEpochs()</code> runs inside <code>createVault()</code> and <code>buy()</code> and finalizes at most 10 pending epochs per call. Set the gas limit from <code>eth_estimateGas</code> on every call, never a constant.</li>
+<li><strong>Paused:</strong> <code>RewardEngine.paused()</code> stops <code>createVault</code>, <code>buy</code>, <code>autoFinalizeEpochs</code> and <code>claimPartnerReward</code>; <code>PSRE.paused()</code> stops every transfer. Read both before each batch.</li>
+<li><code>deployCustomerVault</code> reverts if the caller is not the vault's current owner or the vault holds 1,000 CustomerVaults; <code>distributeToCustomer</code> reverts on an unregistered vault, zero amount or insufficient vault balance (not on a claimed vault); <code>claimVault</code> reverts if already claimed, zero address, or unauthorized caller; <code>reclaimFromCV</code> reverts after claim; <code>transferOut</code> reverts toward any registered vault.</li>
+<li><strong>Owner rotation:</strong> <code>updateOwner(newOwner)</code> then <code>acceptOwnership()</code> from the new key; every onlyOwner call fails from the old key the moment it succeeds. A lost owner key is permanent: it strands the PartnerVault's funds and the <code>address(0)</code>-created CustomerVaults; vaults with a nonzero intended customer stay claimable by that address. Use a non-exportable HSM/KMS key with documented availability and recovery controls.</li>
+<li><strong>Partial batch failure:</strong> each credit is its own transaction; replay from your own logical ledger reconciled against receipts, never from events alone — <code>DistributedToCustomer</code> carries no batch id, recipient id or nonce.</li>
+</ul>
+
+<h2>Code samples</h2>
+<p class="muted">Plain JSON-RPC and <a href="https://viem.sh" rel="noopener">viem</a>; no SDK package exists yet. Function signatures from the source at the commits named in the spec; selectors provisional until the ABI package is pinned. Replace <code>&lt;…&gt;</code> values. Nothing on this page sends a transaction.</p>
+
+<h3>Reading through the Prospereum RPC proxy</h3>
+<pre><code>// The site's read-only proxy forwards eth_call / eth_blockNumber / eth_chainId / eth_getBlockByNumber
+// to Base and allowlists the protocol contracts; it is not a write path. Public fallbacks: mainnet.base.org.
+const rpc = async (method, params) =&gt; {
+  const res = await fetch("https://prospereum.io/rpc", { method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+  const j = await res.json(); if (j.error) throw new Error(j.error.message); return j.result;
+};
+const block = await rpc("eth_blockNumber", []);                       // pin every read to one block
+const active = BigInt(await rpc("eth_call", [{ to: FACTORY, data: "0xda5ef232" /* activeVaultCount() */ }, block]));</code></pre>
+
+<h3>Register <span class="tag">USDC-live</span></h3>
+<pre><code>import { createWalletClient, http, parseAbi, parseUnits } from "viem";
+import { base } from "viem/chains";
+const wallet = createWalletClient({ chain: base, transport: http(&lt;your own RPC&gt;), account: &lt;owner key via KMS signer&gt; });
+const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", FACTORY = "0xFF84408633f79b8f562314cC5A3bCaedA8f76902";
+const erc20 = parseAbi(["function approve(address spender, uint256 amount) returns (bool)"]);
+const factory = parseAbi(["function createVault(uint256 usdcAmountIn, uint256 minPsreOut, uint256 deadline, uint24 fee) returns (address vault)"]);
+const usdcIn = parseUnits("500", 6);                  // S_MIN = 500 USDC
+await wallet.writeContract({ address: USDC, abi: erc20, functionName: "approve", args: [FACTORY, usdcIn] });
+const minPsreOut = &lt;your floor from a fresh Quoter read&gt;;        // &gt; 0, never loosened on retry
+const deadline = BigInt(Math.floor(Date.now() / 1000) + 120);
+await wallet.writeContract({ address: FACTORY, abi: factory, functionName: "createVault",
+  args: [usdcIn, minPsreOut, deadline, 10000], gas: &lt;eth_estimateGas&gt; });   // read the vault from VaultCreated</code></pre>
+
+<h3>Weekly batch: buy, then credit (one call per recipient)</h3>
+<pre><code>const vaultAbi = parseAbi([
+  "function buy(uint256 amountIn, uint256 minAmountOut, uint256 deadline, uint24 fee) returns (uint256 psreOut)",
+  "function distributeToCustomer(address customerVault, uint256 amount)",
+  "event PartnerBought(address indexed vault, uint256 amountIn, uint256 psreOut, uint256 ecosystemBalance, uint256 cumS)"]);
+await wallet.writeContract({ address: USDC, abi: erc20, functionName: "approve", args: [VAULT, batchUsdc] });   // approve the VAULT this time
+const buyTx = await wallet.writeContract({ address: VAULT, abi: vaultAbi, functionName: "buy", args: [batchUsdc, minOut, deadline, 10000] });
+// 1. record buyTx + PartnerBought(usdcAmountIn, psreOut) before computing any credit
+// 2. creditPSRE = owedUSDC * psreOut / usdcAmountIn  (BigInt floor; residue stays in the vault)
+// 3. per credit: persist row → assign nonce → sign → persist signed raw tx + hash → broadcast → reconcile by receipt
+for (const c of credits) {
+  await wallet.writeContract({ address: VAULT, abi: vaultAbi, functionName: "distributeToCustomer", args: [c.customerVault, c.creditPsre], nonce: c.nonce });
+}</code></pre>
+
+<h3>First credit to a new recipient</h3>
+<pre><code>const factoryAbi = parseAbi(["function deployCustomerVault(address partnerVault, address customer) returns (address cv)",
+                             "function isCustomerVaultOf(address cv) view returns (bool)"]);
+const customer = recipient.wallet ?? "0x0000000000000000000000000000000000000000";   // address(0) = platform-managed
+await wallet.writeContract({ address: FACTORY, abi: factoryAbi, functionName: "deployCustomerVault", args: [VAULT, customer] });
+// store recipient id → cv from CustomerVaultDeployed; verify isCustomerVaultOf(cv) before the first credit</code></pre>
+
+<h3>Claim, then withdraw (customer side)</h3>
+<pre><code>const cvAbi = parseAbi(["function claimVault(address newCustomer)", "function withdraw(uint256 amount)",
+                        "function intendedCustomer() view returns (address)", "function psreBalance() view returns (uint256)"]);
+// intendedCustomer != 0: that address (or the owner) may claim; intendedCustomer == 0: only the PartnerVault owner.
+await customerWallet.writeContract({ address: CV, abi: cvAbi, functionName: "claimVault", args: [customerWallet.account.address] });
+// … any time later, a separate action:
+await customerWallet.writeContract({ address: CV, abi: cvAbi, functionName: "withdraw", args: [amount] });   // this is leakage</code></pre>
+
+<h3>Protocol reward</h3>
+<pre><code>const engineAbi = parseAbi(["function owedPartner(address vault) view returns (uint256)", "function claimPartnerReward(address vault)"]);
+const owed = await publicClient.readContract({ address: REWARD_ENGINE, abi: engineAbi, functionName: "owedPartner", args: [VAULT] });
+if (owed &gt; 0n) await wallet.writeContract({ address: REWARD_ENGINE, abi: engineAbi, functionName: "claimPartnerReward", args: [VAULT] });
+// pays the OWNER wallet, not the vault; never describe it to customers as owed or expected — a flat week pays nothing</code></pre>
+
+<h2>Rules a partner must not break</h2>
+<p>Hold PSRE nowhere except the PartnerVault and registered CustomerVaults; credit PSRE nowhere else; one PartnerVault per partner; never move a claimed holder's balance; never stake PSRE from a vault and count it as ecosystem balance; never describe the protocol reward to customers as owed or expected; never tell a customer that claiming moves PSRE anywhere — withdrawing does; never hold the owner key outside a non-exportable HSM/KMS, since the protocol has no recovery for a lost key.</p>
+
+<h2>Test environment</h2>
+<p>Base Sepolia is not usable for the live flow (its deployment uses mainnet USDC/router placeholders and predates the audit fixes). An Anvil/fork harness or a fresh Sepolia stack follows the architecture decision; until then the only full-flow environment is mainnet at the live entry minimum.</p>
+</section>
+</main>
+
+<footer>
+<p>PSRE is a utility token used within the Prospereum protocol. This site is for informational purposes only and does not constitute financial or investment advice. Published by WealthHealth AI, Inc.</p>
+</footer>
+<script type="module" src="./partners.js"></script>
+</body>
+</html>
