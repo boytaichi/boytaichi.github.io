@@ -1,7 +1,7 @@
 /**
  * prospereum.io RPC proxy — Cloudflare Worker (module syntax, no dependencies).
  * Baseline: Site Decision Sheet v2 (2026-10-25) row 2; Token page spec v6 §6; Kin's acceptance tests (2026-10-25);
- * Kin's PR #1 review (2026-11-11/12) findings 2, 4, 6, 7, 8, 11.
+ * Kin's PR #1 review (2026-11-11/12) findings 2, 4, 6, 7, 8, 11; round 2 (2026-11-12) findings 1, 5, 6, 7, 8.
  *
  * Rules implemented (sheet v2 row 2):
  *  (a) methods eth_call, eth_chainId, eth_blockNumber, eth_getBlockByNumber only
@@ -10,26 +10,33 @@
  *      — the allowlist is DERIVED from the pages' own call manifest (pages/shared/call-manifest.mjs), so the Worker
  *        admits exactly what the pages call (Kin #2). Dynamic PartnerVault targets are admitted for the per-vault
  *        selectors only after an upstream factory.vaultActive(target) read at the same pinned block says true
- *        (short bounded cache of verdicts); arbitrary addresses are never admitted.
+ *        (short bounded cache of verdicts keyed by (vault, blockTag) — round 2 #1); arbitrary addresses are never admitted.
+ *      — calldata must be exactly 4 + 32·n bytes for the selector's n argument words (manifest annotation; round 2 #5):
+ *        trailing bytes are rejected, direct and inside a Multicall.
  *  (c) eth_call requires an explicit block tag (hex number or {blockHash}); "latest"/"pending"/"safe"/"finalized"
  *      are rejected, so a stale "latest" can never be cached; EIP-1898 requireCanonical is rejected (Kin #8)
  *      eth_getBlockByNumber: concrete hex number only, header-only (second param === false)
  *  (d) cache key = method + SHA-256 of the normalized params, JSON-RPC id excluded; caller's id preserved; bounded
  *      LRU cache (Kin #4); only validated upstream results are cached (Kin #7)
  *  (e) upstream identity in the `X-Prospereum-Upstream` response header (exposed via CORS), JSON-RPC body untouched
- *  (f) CORS restricted to the site origin; per-IP rate limit MANDATORY in production (fail closed without the binding
- *      unless DEV_ALLOW_NO_RATE_LIMIT="true"); provider URL / key never logged
- *  Limits (Kin #4): request body ≤ MAX_BODY_BYTES; direct calldata ≤ MAX_CALLDATA_BYTES; Multicall calldata
- *      ≤ MAX_MULTICALL_CALLDATA_BYTES with ≤ MAX_INNER_CALLS inner calls of ≤ MAX_INNER_CALLDATA_BYTES each.
+ *  (f) CORS restricted to the site origin; POST /rpc REQUIRES an Origin header equal to SITE_ORIGIN (originless or
+ *      foreign → 403; round 2 #6; GET …/health stays originless); per-IP rate limit MANDATORY in production (fail
+ *      closed without the binding unless DEV_ALLOW_NO_RATE_LIMIT="true"); provider URL / key never logged
+ *  Limits (Kin #4): request body ≤ MAX_BODY_BYTES counted in BYTES — Content-Length first, then a byte-counting read
+ *      of the body stream that aborts past the limit (round 2 #8); direct calldata ≤ MAX_CALLDATA_BYTES; Multicall
+ *      calldata ≤ MAX_MULTICALL_CALLDATA_BYTES with ≤ MAX_INNER_CALLS inner calls of ≤ MAX_INNER_CALLDATA_BYTES each.
  *  Bindings (Kin #6): SITE_ORIGIN, UPSTREAM_URL, CACHE_TTL_SECONDS, RATE_LIMITER are validated on every request;
  *      a bad binding answers 503 with a fixed public message and nothing else. GET …/health probes config +
  *      one allowed and one rejected call shape without touching the upstream.
- *  Upstream (Kin #7): timeout, HTTP status check, JSON-RPC shape + per-method result validation, fixed public
- *      error messages; nothing from the upstream reaches a response except a validated result or a sanitised error.
+ *  Upstream (Kin #7, round 2 #7): timeout, HTTP status check, JSON-RPC envelope validation (jsonrpc === "2.0",
+ *      response id === the id we sent, exactly one of result/error, error = { integer code, string message }),
+ *      per-method result validation, fixed public error messages; an envelope mismatch is 502 and never cached;
+ *      nothing from the upstream reaches a response except a validated result or a sanitised error.
+ *  Request envelope (round 2 #7): `jsonrpc` must be "2.0" (-32600 otherwise).
  *  Allowlist rejection → HTTP 400 with JSON-RPC -32602 (Kin #11: DEPLOY.md aligned to this).
  *  Kin #1 (2026-10-25): JSON-RPC batches are rejected (one request per call).
  */
-import { CONTRACTS, FACTORY_REGISTRY, STATIC_ALLOWLIST, VAULT_SELECTORS, addrWord, classifyCall } from "../../pages/shared/call-manifest.mjs";
+import { CONTRACTS, FACTORY_REGISTRY, STATIC_ALLOWLIST, VAULT_SELECTORS, addrWord, calldataBytesFor, classifyCall } from "../../pages/shared/call-manifest.mjs";
 
 export { CONTRACTS, STATIC_ALLOWLIST, VAULT_SELECTORS };
 /** @deprecated name kept for older imports; the allowlist is derived from the page manifest. */
@@ -78,6 +85,7 @@ export const PUBLIC_ERRORS = Object.freeze({
   EXECUTION_REVERTED: "execution reverted",
   RATE_LIMITED: "rate limited",
   BODY_TOO_LARGE: "request body too large",
+  ORIGIN_NOT_ALLOWED: "origin not allowed",
 });
 
 export function rpcError(id, code, message, status = 400) {
@@ -127,6 +135,7 @@ export function validateRequest(req) {
   if (!req || typeof req !== "object") return { ok: false, error: rpcError(null, JSONRPC_INVALID_REQUEST, "invalid request") };
   const { id, method, params } = req;
   if (id !== undefined && id !== null && typeof id !== "number" && !(typeof id === "string" && id.length <= 64)) return { ok: false, error: rpcError(null, JSONRPC_INVALID_REQUEST, "id must be a number or a short string") };
+  if (req.jsonrpc !== "2.0") return { ok: false, error: rpcError(id, JSONRPC_INVALID_REQUEST, 'jsonrpc must be "2.0"') }; // round 2 #7
   if (typeof method !== "string" || !ALLOWED_METHODS.has(method)) return { ok: false, error: rpcError(id, JSONRPC_METHOD_NOT_FOUND, "method not allowed") };
   const p = Array.isArray(params) ? params : [];
 
@@ -167,14 +176,13 @@ export function validateRequest(req) {
   const inner = decodeCalls(to, data);
   if (!inner.ok) return { ok: false, error: rpcError(id, JSONRPC_INVALID_PARAMS, inner.reason) };
   const vaultTargets = new Set();
-  for (const { target, selector } of inner.calls) {
+  for (const { target, selector, bytes } of inner.calls) {
     const cls = classifyCall(target, selector);
-    if (cls === "static") continue;
-    if (cls === "vault") {
-      vaultTargets.add(target);
-      continue;
-    }
-    return { ok: false, error: rpcError(id, JSONRPC_INVALID_PARAMS, `call not allowed: ${target} ${selector}`) };
+    if (cls !== "static" && cls !== "vault") return { ok: false, error: rpcError(id, JSONRPC_INVALID_PARAMS, `call not allowed: ${target} ${selector}`) };
+    // Round 2 #5: exactly 4 + 32·n bytes for the selector's n argument words; trailing bytes are rejected.
+    const want = calldataBytesFor(target, selector);
+    if (bytes !== want) return { ok: false, error: rpcError(id, JSONRPC_INVALID_PARAMS, `calldata length not allowed: ${selector} takes ${(want - 4) / 32} argument word(s), ${want} bytes`) };
+    if (cls === "vault") vaultTargets.add(target);
   }
   return { ok: true, normalized: { method, params: [{ to, data }, blockTag.tag] }, vaultTargets: [...vaultTargets] };
 }
@@ -195,10 +203,10 @@ function normalizeBlockTag(tag) {
   return bad("eth_call needs an explicit block number (hex) or {blockHash}; latest/pending/safe/finalized are not served");
 }
 
-/** Expand a call into the list of (target, selector) pairs it executes: itself, or every inner call of a Multicall3 aggregate. */
+/** Expand a call into the list of (target, selector, bytes) it executes: itself, or every inner call of a Multicall3 aggregate. */
 export function decodeCalls(to, data) {
   const selector = data.slice(0, 10);
-  if (to !== CONTRACTS.MULTICALL3) return { ok: true, calls: [{ target: to, selector }] };
+  if (to !== CONTRACTS.MULTICALL3) return { ok: true, calls: [{ target: to, selector, bytes: (data.length - 2) / 2 }] };
   const kind = MULTICALL_SELECTORS[selector];
   if (!kind) return { ok: false, reason: `Multicall3 function not allowed: ${selector}` };
   try {
@@ -251,7 +259,7 @@ function decodeAggregate(data, headIndex) {
     const bytesLen = toInt(word(bytesOffset));
     checkInner(bytesLen, len);
     const selector = "0x" + word(bytesOffset + 1).slice(0, 8);
-    out.push({ target, selector });
+    out.push({ target, selector, bytes: bytesLen });
   }
   return out;
 }
@@ -272,7 +280,7 @@ function decodeAggregate3(data) {
     const bytesLen = toInt(word(bytesOffset));
     checkInner(bytesLen, len);
     const selector = "0x" + word(bytesOffset + 1).slice(0, 8);
-    out.push({ target, selector });
+    out.push({ target, selector, bytes: bytesLen });
   }
   return out;
 }
@@ -337,28 +345,40 @@ function sanitiseBlock(b) {
   return out;
 }
 
-/** Map an upstream JSON-RPC error to a fixed public one: the code is kept if it is an integer, the message is canned. */
+/** Map a (shape-validated) upstream JSON-RPC error to a fixed public one: the integer code is kept, the message is canned. */
 function sanitiseError(e) {
-  const code = e && Number.isInteger(e.code) ? e.code : JSONRPC_SERVER_ERROR;
-  const msg = e && typeof e.message === "string" ? e.message : "";
-  return { code, message: /revert/i.test(msg) ? PUBLIC_ERRORS.EXECUTION_REVERTED : PUBLIC_ERRORS.UPSTREAM_RPC_ERROR };
+  return { code: e.code, message: /revert/i.test(e.message) ? PUBLIC_ERRORS.EXECUTION_REVERTED : PUBLIC_ERRORS.UPSTREAM_RPC_ERROR };
+}
+
+/** JSON-RPC error object shape (round 2 #7): a plain object with an integer `code` and a string `message`. */
+function validErrorObject(e) {
+  return !!e && typeof e === "object" && !Array.isArray(e) && Number.isInteger(e.code) && typeof e.message === "string";
+}
+
+let upstreamIdCounter = 0;
+/** A fresh request id per upstream call so the response id can be matched (round 2 #7); wraps well inside 2^53. */
+function nextUpstreamId() {
+  upstreamIdCounter = (upstreamIdCounter % 1_000_000_000) + 1;
+  return upstreamIdCounter;
 }
 
 /**
  * One upstream JSON-RPC call. Resolves { ok: true, result } | { ok: true, error } (sanitised) | { ok: false, kind }
  * with kind "unavailable" (network/timeout/HTTP) or "invalid" (shape). Nothing from the upstream is thrown or logged.
+ * Envelope (round 2 #7): jsonrpc === "2.0", id === the id sent, exactly one of result/error, error shape — else "invalid".
  */
 async function callUpstream(config, method, params, deps) {
   const upstreamFetch = deps.fetch ?? fetch;
   const timeoutMs = deps.timeoutMs ?? LIMITS.UPSTREAM_TIMEOUT_MS;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const id = nextUpstreamId();
   let text;
   try {
     const r = await upstreamFetch(config.upstreamUrl, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+      body: JSON.stringify({ jsonrpc: "2.0", id, method, params }),
       signal: controller.signal,
     });
     if (!r || r.status !== 200) return { ok: false, kind: "unavailable" };
@@ -376,30 +396,38 @@ async function callUpstream(config, method, params, deps) {
     return { ok: false, kind: "invalid" };
   }
   if (!up || typeof up !== "object" || Array.isArray(up) || up.jsonrpc !== "2.0") return { ok: false, kind: "invalid" };
-  if (up.error !== undefined) {
-    if (!up.error || typeof up.error !== "object") return { ok: false, kind: "invalid" };
-    return { ok: true, error: sanitiseError(up.error) };
-  }
-  if (!("result" in up) || !validUpstreamResult(method, up.result)) return { ok: false, kind: "invalid" };
+  if (up.id !== id) return { ok: false, kind: "invalid" }; // response to some other request (or none): never trusted, never cached
+  const hasResult = "result" in up;
+  const hasError = "error" in up;
+  if (hasResult === hasError) return { ok: false, kind: "invalid" }; // exactly one of result / error
+  if (hasError) return validErrorObject(up.error) ? { ok: true, error: sanitiseError(up.error) } : { ok: false, kind: "invalid" };
+  if (!validUpstreamResult(method, up.result)) return { ok: false, kind: "invalid" };
   return { ok: true, result: method === "eth_getBlockByNumber" ? sanitiseBlock(up.result) : up.result };
 }
 
-// --- dynamic PartnerVault verification (Kin #2b) ---------------------------------------------------------------
+// --- dynamic PartnerVault verification (Kin #2b; round 2 #1) ----------------------------------------------------
 const vaultVerdicts = new MemoryCache(() => Date.now(), LIMITS.MAX_VAULT_CACHE_ENTRIES);
+
+/** Verdict cache key: the vault AND the pinned block (round 2 #1) — a vault decommissioned between blocks is never admitted from a stale verdict. */
+export function vaultVerdictKey(vault, blockTag) {
+  return `${vault}@${typeof blockTag === "string" ? blockTag : `hash:${blockTag.blockHash}`}`;
+}
 
 /**
  * Is `vault` a factory-registered, active PartnerVault at `blockTag`? One upstream eth_call to
- * factory.vaultActive(vault) at the same pinned block; verdicts (true/false) are cached briefly and bounded.
+ * factory.vaultActive(vault) at the same pinned block; verdicts (true/false) are cached briefly and bounded, keyed by
+ * (vault, blockTag) so a verdict from one block never answers for another (round 2 #1).
  * Resolves true | false | null (null = could not verify: upstream unavailable/invalid → the request fails closed).
  */
 export async function verifyVault(vault, blockTag, config, deps) {
   const cache = deps.vaultCache ?? vaultVerdicts;
-  const hit = await cache.get(vault);
+  const key = vaultVerdictKey(vault, blockTag);
+  const hit = await cache.get(key);
   if (hit !== null) return hit.active;
   const up = await callUpstream(config, "eth_call", [{ to: FACTORY_REGISTRY.address, data: FACTORY_REGISTRY.vaultActive + addrWord(vault) }, blockTag], deps);
   if (!up.ok || up.error) return null;
   const active = /^0x0{63}1$/.test(up.result);
-  await cache.put(vault, { active }, LIMITS.VAULT_VERDICT_TTL_SECONDS);
+  await cache.put(key, { active }, LIMITS.VAULT_VERDICT_TTL_SECONDS);
   return active;
 }
 
@@ -418,6 +446,42 @@ export function corsHeaders(origin, siteOrigin) {
 
 function json(body, status, headers) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", "cache-control": "no-store", ...headers } });
+}
+
+/**
+ * Read the request body counting BYTES (round 2 #8): Content-Length is checked first (over the limit → rejected before
+ * any read), then the stream is consumed chunk by chunk and cancelled the moment the byte count passes `max`.
+ * `text().length` (UTF-16 code units) is never used. Resolves { text } | { tooLarge: true } | { unreadable: true }.
+ */
+export async function readBodyBounded(request, max = LIMITS.MAX_BODY_BYTES) {
+  const declared = request.headers.get("content-length");
+  if (declared !== null && declared !== "" && (!/^\d{1,15}$/.test(declared) || Number(declared) > max)) return { tooLarge: true };
+  if (!request.body) return { text: "" };
+  const reader = request.body.getReader();
+  const chunks = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!(value instanceof Uint8Array)) return { unreadable: true };
+      total += value.byteLength;
+      if (total > max) {
+        await reader.cancel().catch(() => {});
+        return { tooLarge: true };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return { unreadable: true };
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const c of chunks) {
+    bytes.set(c, offset);
+    offset += c.byteLength;
+  }
+  return { text: new TextDecoder("utf-8").decode(bytes) };
 }
 
 /** Health probe shapes: one call the pages make, one call the allowlist must refuse. Neither touches the upstream. */
@@ -452,7 +516,8 @@ export async function handle(request, env, deps = {}) {
   const cors = corsHeaders(origin, siteOrigin);
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
   if (request.method !== "POST") return json({ error: "POST only" }, 405, cors);
-  if (origin && origin !== siteOrigin) return json({ error: "origin not allowed" }, 403, cors);
+  // Round 2 #6: a POST must carry Origin === SITE_ORIGIN; originless and foreign-origin requests are both 403.
+  if (origin !== siteOrigin) return json({ error: PUBLIC_ERRORS.ORIGIN_NOT_ALLOWED }, 403, cors);
 
   if (limiter) {
     const ip = request.headers.get("cf-connecting-ip") || "unknown";
@@ -465,16 +530,11 @@ export async function handle(request, env, deps = {}) {
     if (!success) return json(rpcError(null, JSONRPC_SERVER_ERROR, PUBLIC_ERRORS.RATE_LIMITED).body, 429, { ...cors, "retry-after": "10" });
   }
 
-  // Body size (Kin #4): declared length first, then the bytes actually read.
-  const declared = Number(request.headers.get("content-length") || 0);
-  if (declared > LIMITS.MAX_BODY_BYTES) return json(rpcError(null, JSONRPC_INVALID_REQUEST, PUBLIC_ERRORS.BODY_TOO_LARGE).body, 413, cors);
-  let text;
-  try {
-    text = await request.text();
-  } catch {
-    return json(rpcError(null, JSONRPC_PARSE_ERROR, "parse error").body, 400, cors);
-  }
-  if (text.length > LIMITS.MAX_BODY_BYTES) return json(rpcError(null, JSONRPC_INVALID_REQUEST, PUBLIC_ERRORS.BODY_TOO_LARGE).body, 413, cors);
+  // Body size (Kin #4; round 2 #8): Content-Length first, then the bytes actually read, counted as bytes.
+  const read = await readBodyBounded(request, LIMITS.MAX_BODY_BYTES);
+  if (read.tooLarge) return json(rpcError(null, JSONRPC_INVALID_REQUEST, PUBLIC_ERRORS.BODY_TOO_LARGE).body, 413, cors);
+  if (read.unreadable) return json(rpcError(null, JSONRPC_PARSE_ERROR, "parse error").body, 400, cors);
+  const text = read.text;
   let body;
   try {
     body = JSON.parse(text);

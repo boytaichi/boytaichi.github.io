@@ -10,8 +10,9 @@ function req(body, headers = {}) {
 }
 function upstream(result, calls = []) {
   return async (url, init) => {
-    calls.push({ url, body: JSON.parse(init.body) });
-    return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result }), { headers: { "content-type": "application/json" } });
+    const body = JSON.parse(init.body);
+    calls.push({ url, body });
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result }), { headers: { "content-type": "application/json" } }); // id echoed (round 2 #7)
   };
 }
 const T_CALL = { to: CONTRACTS.REWARD_ENGINE, data: "0x2bc80f3a" }; // RewardEngine.T()
@@ -151,7 +152,7 @@ test("cache: entries expire after the TTL; upstream errors are not cached", asyn
   const r = await handle(req({ jsonrpc: "2.0", id: 2, method: "eth_chainId", params: [] }), env, { fetch: f, cache });
   assert.equal(r.headers.get("X-Prospereum-Cache"), "MISS");
   assert.equal(calls.length, 2);
-  const errUp = async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, error: { code: -32000, message: "execution reverted" } }));
+  const errUp = async (_u, init) => new Response(JSON.stringify({ jsonrpc: "2.0", id: JSON.parse(init.body).id, error: { code: -32000, message: "execution reverted" } }));
   const e1 = await handle(req({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }), env, { fetch: errUp, cache });
   assert.equal((await e1.json()).error.message, "execution reverted"); // sanitised to the fixed public message (Kin #7)
   const e2 = await handle(req({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }), env, { fetch: errUp, cache });

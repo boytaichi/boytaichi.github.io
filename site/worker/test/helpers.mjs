@@ -9,14 +9,24 @@ export function req(body, headers = {}, url = "https://rpc.prospereum.io/rpc") {
   return new Request(url, { method: "POST", headers: { "content-type": "application/json", origin: SITE, ...headers }, body: text });
 }
 
-/** Upstream stub answering every call with `result` (or a function of the parsed JSON-RPC request). */
+/** Upstream stub answering every call with `result` (or a function of the parsed JSON-RPC request); echoes the request id like a real node (round 2 #7). */
 export function upstream(result, calls = []) {
   return async (url, init) => {
     const body = JSON.parse(init.body);
     calls.push({ url, body });
     const r = typeof result === "function" ? result(body) : result;
-    return new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: r }), { headers: { "content-type": "application/json" } });
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: body.id, result: r }), { headers: { "content-type": "application/json" } });
   };
+}
+
+/** Upstream stub answering every call with a JSON-RPC error object (id echoed). */
+export function upstreamError(error) {
+  return async (_url, init) => new Response(JSON.stringify({ jsonrpc: "2.0", id: JSON.parse(init.body).id, error }), { headers: { "content-type": "application/json" } });
+}
+
+/** Upstream stub answering with an arbitrary envelope built from the request id (for envelope-validation tests). */
+export function upstreamEnvelope(build, status = 200) {
+  return async (_url, init) => new Response(JSON.stringify(build(JSON.parse(init.body).id)), { status, headers: { "content-type": "application/json" } });
 }
 
 export const word = (n) => "0x" + BigInt(n).toString(16).padStart(64, "0");

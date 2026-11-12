@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { handle, validateRequest, validateEnv, healthResponse, cacheKey, LIMITS, MemoryCache, CONTRACTS, PUBLIC_ERRORS } from "../src/index.js";
-import { env, req, upstream, word, encodeAggregate, SITE, UPSTREAM_SECRET } from "./helpers.mjs";
+import { env, req, upstream, upstreamError, upstreamEnvelope, word, encodeAggregate, SITE, UPSTREAM_SECRET } from "./helpers.mjs";
 
 const BLOCK = "0x3276f9f";
 const T_CALL = { to: CONTRACTS.REWARD_ENGINE, data: "0x2bc80f3a" };
@@ -146,15 +146,15 @@ test("Kin #7 — upstream timeout, non-200 status, non-JSON, wrong JSON-RPC shap
   const cases = [
     ["timeout", { fetch: (_, init) => new Promise((_r, rej) => init.signal.addEventListener("abort", () => rej(new Error("aborted " + UPSTREAM_SECRET)))), timeoutMs: 20 }, PUBLIC_ERRORS.UPSTREAM_UNAVAILABLE],
     ["http 500", { fetch: async () => new Response("internal " + UPSTREAM_SECRET, { status: 500 }) }, PUBLIC_ERRORS.UPSTREAM_UNAVAILABLE],
-    ["http 401", { fetch: async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: "0x2105" }), { status: 401 }) }, PUBLIC_ERRORS.UPSTREAM_UNAVAILABLE],
+    ["http 401", { fetch: upstreamEnvelope((id) => ({ jsonrpc: "2.0", id, result: "0x2105" }), 401) }, PUBLIC_ERRORS.UPSTREAM_UNAVAILABLE],
     ["not json", { fetch: async () => new Response("<html>rate limited " + UPSTREAM_SECRET) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
     ["array body", { fetch: async () => new Response("[]") }, PUBLIC_ERRORS.UPSTREAM_INVALID],
-    ["no jsonrpc", { fetch: async () => new Response(JSON.stringify({ id: 1, result: "0x2105" })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
-    ["no result", { fetch: async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1 })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
-    ["result not hex", { fetch: async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: "8453" })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
-    ["result leading zero", { fetch: async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: "0x02105" })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
-    ["result object", { fetch: async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, result: { url: UPSTREAM_SECRET } })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
-    ["error not object", { fetch: async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, error: "boom " + UPSTREAM_SECRET })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
+    ["no jsonrpc", { fetch: upstreamEnvelope((id) => ({ id, result: "0x2105" })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
+    ["no result", { fetch: upstreamEnvelope((id) => ({ jsonrpc: "2.0", id })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
+    ["result not hex", { fetch: upstreamEnvelope((id) => ({ jsonrpc: "2.0", id, result: "8453" })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
+    ["result leading zero", { fetch: upstreamEnvelope((id) => ({ jsonrpc: "2.0", id, result: "0x02105" })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
+    ["result object", { fetch: upstreamEnvelope((id) => ({ jsonrpc: "2.0", id, result: { url: UPSTREAM_SECRET } })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
+    ["error not object", { fetch: upstreamEnvelope((id) => ({ jsonrpc: "2.0", id, error: "boom " + UPSTREAM_SECRET })) }, PUBLIC_ERRORS.UPSTREAM_INVALID],
   ];
   for (const [name, deps, msg] of cases) {
     const cache = new MemoryCache();
@@ -169,17 +169,21 @@ test("Kin #7 — upstream timeout, non-200 status, non-JSON, wrong JSON-RPC shap
   }
 });
 
-test("Kin #7 — upstream JSON-RPC errors are forwarded with a fixed public message (code kept when integer, data dropped); eth_call results must be hex bytes; block headers are field-filtered", async () => {
+test("Kin #7 — upstream JSON-RPC errors are forwarded with a fixed public message (integer code kept, data dropped); eth_call results must be hex bytes; block headers are field-filtered", async () => {
   const cache = new MemoryCache();
-  const errUp = async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, error: { code: 3, message: "execution reverted: nope " + UPSTREAM_SECRET, data: UPSTREAM_SECRET } }));
+  const errUp = upstreamError({ code: 3, message: "execution reverted: nope " + UPSTREAM_SECRET, data: UPSTREAM_SECRET });
   const r = await handle(req(call(T_CALL)), env, { fetch: errUp, cache });
   assert.equal(r.status, 200);
   const b = await r.json();
   assert.deepEqual(b.error, { code: 3, message: PUBLIC_ERRORS.EXECUTION_REVERTED });
   assert.equal(cache.size, 0);
-  const other = async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, error: { code: "x", message: "invalid api key " + UPSTREAM_SECRET } }));
+  const other = upstreamError({ code: -32005, message: "invalid api key " + UPSTREAM_SECRET });
   const o = await (await handle(req(call(T_CALL)), env, { fetch: other, cache })).json();
-  assert.deepEqual(o.error, { code: -32000, message: PUBLIC_ERRORS.UPSTREAM_RPC_ERROR });
+  assert.deepEqual(o.error, { code: -32005, message: PUBLIC_ERRORS.UPSTREAM_RPC_ERROR });
+  // round 2 #7: an error object with a non-integer code is an invalid envelope → 502, not a forwarded error
+  const badShape = await handle(req(call(T_CALL)), env, { fetch: upstreamError({ code: "x", message: "invalid api key " + UPSTREAM_SECRET }), cache });
+  assert.equal(badShape.status, 502);
+  assert.equal((await badShape.json()).error.message, PUBLIC_ERRORS.UPSTREAM_INVALID);
   // eth_call result that is not hex bytes → invalid, not cached
   const odd = await handle(req(call(T_CALL)), env, { fetch: upstream("0x123"), cache });
   assert.equal(odd.status, 502);
