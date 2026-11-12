@@ -27,7 +27,7 @@
 <tr><th>Reserve remaining</th><td><span data-v="reserveRemaining">—</span> PSRE</td></tr>
 <tr><th>Reserve size</th><td><span data-v="reserveSize">—</span> PSRE <small>constant in the contract</small></td></tr>
 <tr><th>Protocol treasury</th><td><span data-v="treasury">—</span> PSRE · 2-of-3 multisig</td></tr>
-<tr><th>Team allocation</th><td><span data-v="founder">—</span> PSRE <small>held in the Founder Safe; vesting stream not yet started</small></td></tr>
+<tr><th>Team allocation</th><td><span data-v="founder">—</span> PSRE <small>held in the Founder Safe; no vesting stream is active</small></td></tr>
 <tr><th>Maximum new PSRE in one epoch today</th><td><span data-v="scarcityCap">—</span> PSRE</td></tr>
 </table>
 </section>
@@ -70,7 +70,7 @@
 <p>Other settings — the partner cap, the fee-tier whitelist, the entry minimum under the PSRE-native version, the staker-pool split, and pausing — are set by the Founder Safe and take effect immediately, without a timelock.</p>
 <p>Upgrades to the RewardEngine take effect <span data-v="upgradeTimelock">—</span> after they are scheduled. Under the PSRE-native version, replacing the partner-vault factory is a second step with its own, subsequent 7-day delay, so a full migration passes two timelocks in sequence. The PSRE token contract itself is not upgradeable.</p>
 <p>The 21 million cap and the 12.6 million reserve are constants in the contracts.</p>
-<p>Changes are proposed and executed by the Founder Safe under the timelocks above. No token vote exists today and there is no DAO; if that changes, it will be announced here first.</p>
+<p>Changes are proposed and executed by the Founder Safe under the timelocks above. No token vote exists today and there is no DAO.</p>
 <h3>Contract addresses</h3>
 <ul id="addresses" class="addresses"></ul>
 </section>

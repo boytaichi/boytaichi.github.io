@@ -1,6 +1,7 @@
 // prospereum.io — Token page config (spec v6 §3/§6, sheet v2 rows 2/4/5/6).
 // The ONLY constants typed into the page: endpoints, contract addresses, selectors. Every number is read.
-// Addresses are cross-checked against the pinned ABI package once Kin publishes it (SDK spec v4 open item 1).
+// Addresses are those in the protocol's deployments.md (wealthhealthai/prospereum-protocol); return types per getter
+// live in shared/call-manifest.mjs RETURN_TYPES.
 export const CHAIN_ID_HEX = "0x2105"; // Base mainnet 8453
 
 /** Production primary = the Cloudflare Worker proxy (sheet v2 row 2); public endpoints are fallbacks, in this order. */

@@ -52,9 +52,9 @@ test("every internal href / src / stylesheet on every page resolves to a file", 
 });
 
 /** Unresolved-placeholder patterns no published page may carry (the same list .github/workflows/pr-checks.yml greps for). */
-export const PLACEHOLDER_PATTERNS = [/\[(today|contact address|link pending)[^\]]*\]/i, /class="pending"/, /coming[\s-]soon/i, /\bTBD\b/, /\bTODO\b/, /lorem ipsum/i];
+export const PLACEHOLDER_PATTERNS = [/\[(today|contact address|link pending)[^\]]*\]/i, /class="pending"/, /coming[\s-]soon/i, /\bTBD\b/, /\bTODO\b/, /lorem ipsum/i, /published with/i, /to be published/i, /when the first partner/i];
 
-test("no published page carries an unresolved placeholder (bracketed pending text, class=\"pending\", \"coming soon\", TBD/TODO) — Kin PR #1 addendum + round 2 finding 4", () => {
+test("no published page carries an unresolved placeholder (bracketed pending text, class=\"pending\", \"coming soon\", TBD/TODO) or a forward-looking release promise (\"published with\", \"to be published\", \"when the first partner\") — Kin PR #1 addendum + round 2 finding 4 + round 3 finding 3", () => {
   const hits = [];
   for (const { file } of pageFiles) {
     const html = readFileSync(file, "utf8");

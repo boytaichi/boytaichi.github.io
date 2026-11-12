@@ -1,8 +1,8 @@
 // prospereum.io — Partners & Developers page config (SDK spec v4 §1 build rule, §2 contracts table).
 // Reuses the Token page's endpoints and addresses so there is one source of truth for both (token/config.js).
-// Selectors below = keccak-256 first four bytes of the signature, computed with js-sha3 0.9.3 on 2026-10-28;
-// activeVaultCount()/vaultCount() cross-check against token/config.js (0xda5ef232 / 0xa7c6a100). Provisional
-// until Kin publishes the pinned ABI package (spec v4 open item 1).
+// Selectors below = keccak-256 first four bytes of the signature, computed with js-sha3 0.9.3 on 2026-10-28 from the
+// protocol source (wealthhealthai/prospereum-protocol); activeVaultCount()/vaultCount() cross-check against
+// token/config.js (0xda5ef232 / 0xa7c6a100). Return types per getter live in shared/call-manifest.mjs RETURN_TYPES.
 export { ADDR, BASESCAN, CHAIN_ID_HEX, ENDPOINTS, REFRESH_MS } from "../token/config.js";
 
 export const FACTORY_GETTERS = {
@@ -21,7 +21,7 @@ export const VAULT_GETTERS = {
   getCustomerVaultCount: "0x1e08f98c",
 };
 
-/** §2 contracts table (chain ID 8453). "Source on BaseScan" wording per Kin's 2026-10-21 check — re-check before launch. */
+/** §2 contracts table (chain ID 8453). "Source on BaseScan" wording per the 2026-10-21 check; re-read BaseScan before changing any row. */
 export const CONTRACTS = [
   { name: "PSRE token (ERC-20)", key: "PSRE", source: "Not yet verified (Oct 2026)" },
   { name: "PartnerVaultFactory", key: "FACTORY", source: "Not yet verified (Oct 2026)" },

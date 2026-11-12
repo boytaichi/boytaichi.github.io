@@ -1,4 +1,4 @@
-# Pre-merge release gate for the static site + RPC Worker (Kin PR #1 finding 5; round 2 findings 3, 4; round 3 finding 2).
+# Pre-merge release gate for the static site + RPC Worker (Kin PR #1 finding 5; round 2 findings 3, 4; round 3 findings 2, 3).
 # Every job checks out the PR HEAD SHA (round 3 finding 2) — not the synthetic refs/pull/N/merge ref — and asserts
 # `git rev-parse HEAD` equals it, so the tests and the exact-head preview gate run against the commit under review.
 # Runs on every pull request: shared chrome check, copy drift, every page test INCLUDING the headless-Chrome
@@ -55,10 +55,10 @@ jobs:
       - name: Page tests (logic, fallback, copy drift, site integration in headless Chrome)
         working-directory: site/pages
         run: node --test token/test/token-logic.test.mjs partners/test/partners-logic.test.mjs shared/test/live-logic.test.mjs shared/test/rpc.test.mjs test/copy-drift.test.mjs test/site.test.mjs
-      - name: No unresolved placeholders in the published tree
+      - name: No unresolved placeholders or forward-looking release promises in the published tree (round 2 finding 4; round 3 finding 3)
         working-directory: site/pages
         run: |
-          if grep -rni --include=index.html -E '\[(today|contact address|link pending)[^]]*\]|class="pending"|coming[ -]soon|\bTBD\b|\bTODO\b|lorem ipsum' . ; then echo "unresolved placeholder"; exit 1; fi
+          if grep -rni --include=index.html -E '\[(today|contact address|link pending)[^]]*\]|class="pending"|coming[ -]soon|\bTBD\b|\bTODO\b|lorem ipsum|published with|to be published|when the first partner' . ; then echo "unresolved placeholder or release promise"; exit 1; fi
 
   worker:
     name: Worker — acceptance, manifest replay, hardening

@@ -40,7 +40,7 @@ ol.flow li{margin:8px 0}
 </ul>
 
 <h2>Want your brand on this page?</h2>
-<p>A partner is any business that would rather give customers a reward they keep than a discount they forget. Joining takes one PartnerVault and an entry deposit at the protocol minimum. Entry deposit terms are published when the first partner vault goes live. Read how it works below.</p>
+<p>A partner is any business that would rather give customers a reward they keep than a discount they forget. Joining takes one PartnerVault and an entry deposit at the protocol minimum. Read how it works below.</p>
 </section>
 
 <section id="developers">
@@ -54,18 +54,17 @@ ol.flow li{margin:8px 0}
 <thead><tr><th>Contract</th><th>Address</th><th>Source on BaseScan</th><th>Explorer</th></tr></thead>
 <tbody></tbody>
 </table>
-<p class="muted">Verification status per Kin's check of 21 October 2026; re-checked per contract before launch. Never read as a blanket "all verified".</p>
+<p class="muted">Verification status as checked on 21 October 2026. Never read as a blanket "all verified".</p>
 
 <h2>Documents and source</h2>
 <ul>
 <li>Audit: BlockApex, 2–17 April 2026, 29 findings, all resolved before deployment. <a href="https://github.com/BlockApex/Audit-Reports/blob/master/Prospereum%20Protocol_Final%20Audit%20Report.pdf" rel="noopener">Report (PDF)</a></li>
-<li>Source: <a href="https://github.com/wealthhealthai/prospereum-protocol" rel="noopener">wealthhealthai/prospereum-protocol</a> (public; contracts, audit responses). Deployment records, mainnet and testnet: <a href="https://github.com/wealthhealthai/prospereum-protocol/blob/main/projects/prospereum/deployments.md" rel="noopener">deployments.md</a>. A versioned ABI package pinned to the live addresses is still to be published.</li>
-<li>Whitepaper and Partner Guide: published with the first partner vault.</li>
+<li>Source: <a href="https://github.com/wealthhealthai/prospereum-protocol" rel="noopener">wealthhealthai/prospereum-protocol</a> (public; contracts, audit responses). Deployment records, mainnet and testnet: <a href="https://github.com/wealthhealthai/prospereum-protocol/blob/main/projects/prospereum/deployments.md" rel="noopener">deployments.md</a>.</li>
 </ul>
 <!-- SDK section follows -->
 
 <h2>Partner SDK — the flow your backend runs</h2>
-<p>Written against the first real consumer: a backend that settles rewards weekly, converts the owed amount into PSRE in one tracked step per batch, and credits each recipient's CustomerVault. Calls tagged <span class="tag">USDC-live</span> are the contracts deployed on 22 April 2026 (factory <code>0xFF84…6902</code>); calls tagged <span class="tag">PSRE-native</span> are the audited post-launch source, staged and not yet on mainnet. Untagged steps are identical under both. Every signature stays provisional until the pinned ABI package is published. <strong>Decimals:</strong> PSRE 18, USDC 6.</p>
+<p>Written against the first real consumer: a backend that settles rewards weekly, converts the owed amount into PSRE in one tracked step per batch, and credits each recipient's CustomerVault. Calls tagged <span class="tag">USDC-live</span> are the contracts deployed on 22 April 2026 (factory <code>0xFF84…6902</code>); calls tagged <span class="tag">PSRE-native</span> are the audited post-launch source, staged and not yet on mainnet. Untagged steps are identical under both. <strong>Decimals:</strong> PSRE 18, USDC 6.</p>
 <ol class="flow">
 <li><strong>Register</strong> — the owner key calls the factory once. <span class="tag">USDC-live</span> approve USDC to the factory (≥ 500 USDC), then <code>createVault(usdcAmountIn, minPsreOut, deadline, 10000)</code>; the PSRE received sets <code>initialCumS</code>. <span class="tag">PSRE-native</span> approve PSRE to the factory (≥ <code>psreMin()</code>), then <code>createVault(psreAmountIn)</code>. Record the vault address from <code>VaultCreated</code>; one vault per creator address; at most <code>maxPartners()</code> active vaults.</li>
 <li><strong>Fund</strong> — approval targets differ: the factory for creation, the PartnerVault for every later <code>buy</code>. Never pre-transfer USDC or PSRE to the vault: a raw transfer does not feed <code>buy()</code> and raw PSRE is ignored by <code>ecosystemBalance</code>.</li>
@@ -97,7 +96,7 @@ ol.flow li{margin:8px 0}
 </ul>
 
 <h2>Code samples</h2>
-<p class="muted">Plain JSON-RPC and <a href="https://viem.sh" rel="noopener">viem</a>; no SDK package exists yet. Function signatures from the source at the commits named in the spec; selectors provisional until the ABI package is pinned. Replace <code>&lt;…&gt;</code> values. Nothing on this page sends a transaction.</p>
+<p class="muted">Plain JSON-RPC and <a href="https://viem.sh" rel="noopener">viem</a>; there is no SDK package. Function signatures and selectors are taken from the protocol source linked above. Replace <code>&lt;…&gt;</code> values. Nothing on this page sends a transaction.</p>
 
 <h3>Reading through the Prospereum RPC proxy</h3>
 <pre><code>// The site's read-only proxy forwards eth_call / eth_blockNumber / eth_chainId / eth_getBlockByNumber
@@ -164,7 +163,7 @@ if (owed &gt; 0n) await wallet.writeContract({ address: REWARD_ENGINE, abi: engi
 <p>Hold PSRE nowhere except the PartnerVault and registered CustomerVaults; credit PSRE nowhere else; one PartnerVault per partner; never move a claimed holder's balance; never stake PSRE from a vault and count it as ecosystem balance; never describe the protocol reward to customers as owed or expected; never tell a customer that claiming moves PSRE anywhere — withdrawing does; never hold the owner key outside a non-exportable HSM/KMS, since the protocol has no recovery for a lost key.</p>
 
 <h2>Test environment</h2>
-<p>Base Sepolia is not usable for the live flow (its deployment uses mainnet USDC/router placeholders and predates the audit fixes). An Anvil/fork harness or a fresh Sepolia stack follows the architecture decision; until then the only full-flow environment is mainnet at the live entry minimum.</p>
+<p>Base Sepolia is not usable for the live flow (its deployment uses mainnet USDC/router placeholders and predates the audit fixes). The only full-flow environment is mainnet at the live entry minimum.</p>
 </section>
 </main>
 
