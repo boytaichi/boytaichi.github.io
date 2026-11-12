@@ -1,7 +1,11 @@
-# Pre-merge release gate for the static site + RPC Worker (Kin PR #1 finding 5).
+# Pre-merge release gate for the static site + RPC Worker (Kin PR #1 finding 5; round 2 findings 3, 4).
 # Runs on every pull request: shared chrome check, copy drift, every page test INCLUDING the headless-Chrome
 # integration test (test/site.test.mjs: six pages load with zero console errors, phone-width nav hit-test), and
-# the Worker suite (Kin's acceptance tests, the page-manifest replay, limits/bindings/upstream hardening).
+# the Worker suite (Kin's acceptance tests, the page-manifest replay, limits/bindings/upstream hardening), then the
+# exact-head PREVIEW GATE (round 2 finding 3): site/pages served from this exact checkout by a static server, the
+# Worker run offline behind a Node shim AND under `wrangler dev --local` (workerd) against a stub upstream, and
+# scripts/verify-deploy.mjs run against both with --exact (every served route byte-identical to the checkout).
+# No Cloudflare deploy happens here: CI has no token, and the Pages project output dir is Jason's A3 item (DEPLOY.md §2).
 # No install step: the site has no dependencies; Google Chrome ships on ubuntu-latest.
 name: PR checks
 
@@ -57,3 +61,21 @@ jobs:
       - name: Wrangler dry run (bundles the shared manifest from site/pages; no deploy, no secrets)
         working-directory: site/worker
         run: npx --yes wrangler@3 deploy --dry-run --outdir /tmp/worker-dry-run
+
+  preview:
+    name: Preview gate — exact checkout served + Worker (shim, then wrangler dev --local) + verify-deploy --exact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Offline — pages from this checkout + Worker handle() behind a Node shim + stub upstream
+        working-directory: site/pages
+        run: node scripts/preview-gate.mjs --worker shim
+      - name: workerd — pages from this checkout + `wrangler dev --local` + stub upstream (npx fetches wrangler; no deploy, no token)
+        working-directory: site/pages
+        env:
+          WRANGLER_SEND_METRICS: "false"
+        run: node scripts/preview-gate.mjs --worker wrangler --wrangler-timeout-ms 240000
