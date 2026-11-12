@@ -2,8 +2,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  ZERO, batchConversion, decodeAddressArray, decodeBool, decodeUint, finalizationsOnNextCall, livePartnerList, mayClaim, partnersHeadline, pct18, tierOf,
+  ZERO, batchConversion, decodeAddressArray, decodeBool, decodeUint, factoryCalls, finalizationsOnNextCall, livePartnerList, mayClaim, partnersHeadline, pct18, tierOf, vaultActiveCall, vaultCalls,
 } from "../partners-logic.mjs";
+import { ADDR, FACTORY_GETTERS, VAULT_GETTERS } from "../config.js";
+import { STATIC_ALLOWLIST, VAULT_SELECTORS, classifyCall } from "../../shared/call-manifest.mjs";
 
 const A = "0x1111111111111111111111111111111111111111";
 const B = "0x2222222222222222222222222222222222222222";
@@ -70,4 +72,19 @@ test("headline uses the live active count only", () => {
   assert.equal(partnersHeadline(0n), "Partners, announced as they launch. None live yet.");
   assert.equal(partnersHeadline(1n), "1 partner live on Base.");
   assert.equal(partnersHeadline(3n), "3 partners live on Base.");
+});
+
+test("call builders (Kin PR #1 finding 2): factory reads, vaultActive(vault) and per-vault reads are pinned to one block and every pair is in the shared manifest", () => {
+  const f = factoryCalls("0x327a1df");
+  assert.deepEqual(f.map((c) => c.key), ["activeVaultCount", "vaultCount", "maxPartners", "getAllVaults"]);
+  assert.ok(f.every((c) => c.to === ADDR.FACTORY.toLowerCase() && c.blockTag === "0x327a1df" && c.data === FACTORY_GETTERS[c.key]));
+  const va = vaultActiveCall(A.toUpperCase().replace("0X", "0x"), "0x327a1df");
+  assert.equal(va.data, FACTORY_GETTERS.vaultActive + A.slice(2).padStart(64, "0"));
+  assert.equal(va.to, ADDR.FACTORY.toLowerCase());
+  const v = vaultCalls(A, "0x327a1df");
+  assert.deepEqual(v.map((c) => c.key).sort(), Object.keys(VAULT_GETTERS).sort());
+  assert.ok(v.every((c) => c.to === A && c.blockTag === "0x327a1df" && VAULT_SELECTORS.has(c.data)));
+  for (const c of [...f, va]) assert.equal(classifyCall(c.to, c.data.slice(0, 10)), "static", c.key);
+  for (const c of v) assert.equal(classifyCall(c.to, c.data), "vault", c.key);
+  assert.ok(STATIC_ALLOWLIST[ADDR.FACTORY.toLowerCase()].has(FACTORY_GETTERS.getAllVaults));
 });

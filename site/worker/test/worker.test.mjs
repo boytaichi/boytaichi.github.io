@@ -1,11 +1,9 @@
-// Run: node --test documents/axia/prospereum/site/worker/test
+// Run from site/worker: node --test test/*.test.mjs
 // Kin's three acceptance tests (2026-10-25) + the sheet v2 row-2 rules. No dependencies.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { handle, validateRequest, decodeCalls, cacheKey, CONTRACTS, MemoryCache } from "../src/index.js";
-
-const SITE = "https://prospereum.io";
-const env = { SITE_ORIGIN: SITE, UPSTREAM_URL: "https://base-mainnet.g.alchemy.com/v2/SECRET-KEY-NEVER-SHOWN", UPSTREAM_NAME: "Alchemy (Base mainnet)", CACHE_TTL_SECONDS: "60" };
+import { env, SITE } from "./helpers.mjs";
 
 function req(body, headers = {}) {
   return new Request("https://rpc.prospereum.io/", { method: "POST", headers: { "content-type": "application/json", origin: SITE, ...headers }, body: JSON.stringify(body) });
@@ -140,14 +138,14 @@ test("cache key excludes the id; a second call with a different id is a HIT with
   assert.equal((await b.json()).id, 99);
   assert.equal(c.headers.get("X-Prospereum-Cache"), "MISS");
   assert.equal(calls.length, 2);
-  assert.equal(cacheKey({ method: "eth_call", params: [T_CALL, BLOCK] }), cacheKey({ method: "eth_call", params: [T_CALL, BLOCK] }));
+  assert.equal(await cacheKey({ method: "eth_call", params: [T_CALL, BLOCK] }), await cacheKey({ method: "eth_call", params: [T_CALL, BLOCK] }));
 });
 
 test("cache: entries expire after the TTL; upstream errors are not cached", async () => {
   let now = 1_000_000;
   const cache = new MemoryCache(() => now);
   const calls = [];
-  const f = upstream("0x02", calls);
+  const f = upstream("0x2105", calls);
   await handle(req({ jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }), env, { fetch: f, cache });
   now += 61_000;
   const r = await handle(req({ jsonrpc: "2.0", id: 2, method: "eth_chainId", params: [] }), env, { fetch: f, cache });
@@ -155,7 +153,7 @@ test("cache: entries expire after the TTL; upstream errors are not cached", asyn
   assert.equal(calls.length, 2);
   const errUp = async () => new Response(JSON.stringify({ jsonrpc: "2.0", id: 1, error: { code: -32000, message: "execution reverted" } }));
   const e1 = await handle(req({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }), env, { fetch: errUp, cache });
-  assert.equal((await e1.json()).error.message, "execution reverted");
+  assert.equal((await e1.json()).error.message, "execution reverted"); // sanitised to the fixed public message (Kin #7)
   const e2 = await handle(req({ jsonrpc: "2.0", id: 1, method: "eth_blockNumber", params: [] }), env, { fetch: errUp, cache });
   assert.equal(e2.headers.get("X-Prospereum-Cache"), "MISS");
 });
@@ -171,6 +169,7 @@ test("CORS: foreign origin 403; preflight 204 only for the site origin; GET 405;
   assert.equal(get.status, 405);
   const limited = await handle(req({ jsonrpc: "2.0", id: 1, method: "eth_chainId", params: [] }), { ...env, RATE_LIMITER: { limit: async () => ({ success: false }) } }, { fetch: upstream("0x2105") });
   assert.equal(limited.status, 429);
+  assert.equal((await limited.json()).error.message, "rate limited");
 });
 
 test("upstream failure: 502 with a generic message; the upstream URL never leaks", async () => {

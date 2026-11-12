@@ -4,19 +4,24 @@
 name = "prospereum-rpc"
 main = "src/index.js"
 compatibility_date = "2026-10-01"
+# src/index.js imports ../../pages/shared/call-manifest.mjs (the page call manifest = the allowlist); wrangler bundles it.
 
 # Either a route on the site zone or a dedicated subdomain — pick one (sheet row 2: `/rpc` route or rpc.prospereum.io).
+# `/rpc/*` is needed for the GET /rpc/health probe (Kin PR #1 finding 6).
 routes = [
-  { pattern = "prospereum.io/rpc", zone_name = "prospereum.io" }
+  { pattern = "prospereum.io/rpc", zone_name = "prospereum.io" },
+  { pattern = "prospereum.io/rpc/*", zone_name = "prospereum.io" }
 ]
 
+# Every binding below is validated on each request (Kin #6): a missing or malformed one answers 503 "service misconfigured".
 [vars]
-SITE_ORIGIN = "https://prospereum.io"
+SITE_ORIGIN = "https://prospereum.io"                 # exact origin (scheme + host, no path)
 UPSTREAM_NAME = "Alchemy (Base mainnet, free tier)"   # what the page shows; never the URL
-CACHE_TTL_SECONDS = "60"
+CACHE_TTL_SECONDS = "60"                              # integer 1–3600
+# DEV_ALLOW_NO_RATE_LIMIT = "true"                    # local `wrangler dev` ONLY: lets the Worker run without RATE_LIMITER. Never in production.
 
-# Per-IP rate limit (Cloudflare rate-limiting binding). 60 requests / 10 s per IP is ample for a page that
-# refreshes once a minute with one multicall.
+# Per-IP rate limit (Cloudflare rate-limiting binding). MANDATORY in production (Kin #4/#6): without it the Worker
+# fails closed. 60 requests / 10 s per IP is ample for a page that refreshes once a minute with one multicall.
 [[unsafe.bindings]]
 name = "RATE_LIMITER"
 type = "ratelimit"

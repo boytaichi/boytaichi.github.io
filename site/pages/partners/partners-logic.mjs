@@ -2,8 +2,30 @@
 // No IO. Everything here is unit-tested in test/partners-logic.test.mjs. Amounts are BigInt in base units
 // (PSRE 18 decimals, USDC 6 decimals).
 
+import { ADDR, FACTORY_GETTERS, VAULT_GETTERS } from "./config.js";
+
 export const PSRE_DECIMALS = 18n;
 export const USDC_DECIMALS = 6n;
+
+const addrWord = (a) => a.slice(2).toLowerCase().padStart(64, "0");
+const FACTORY = ADDR.FACTORY.toLowerCase();
+
+/**
+ * Call manifest for one Partners page refresh, all pinned to `blockTag` (Kin PR #1 finding 2: the same builder feeds
+ * the page and the Worker integration test, so what the page calls is exactly what the Worker is tested against).
+ *  factoryCalls      — the five factory getters the page reads before it knows any vault;
+ *  vaultActiveCall   — factory.vaultActive(vault) for each address from getAllVaults();
+ *  vaultCalls        — the per-vault PartnerVault getters for a live row.
+ */
+export function factoryCalls(blockTag) {
+  return ["activeVaultCount", "vaultCount", "maxPartners", "getAllVaults"].map((key) => ({ key, to: FACTORY, data: FACTORY_GETTERS[key], blockTag }));
+}
+export function vaultActiveCall(vault, blockTag) {
+  return { key: "vaultActive", vault: vault.toLowerCase(), to: FACTORY, data: FACTORY_GETTERS.vaultActive + addrWord(vault), blockTag };
+}
+export function vaultCalls(vault, blockTag) {
+  return Object.entries(VAULT_GETTERS).map(([key, selector]) => ({ key, vault: vault.toLowerCase(), to: vault.toLowerCase(), data: selector, blockTag }));
+}
 
 /** §1 build rule: the live partner list = getAllVaults() filtered by factory.vaultActive(vault) === true. */
 export function livePartnerList(allVaults, activeFlags) {
