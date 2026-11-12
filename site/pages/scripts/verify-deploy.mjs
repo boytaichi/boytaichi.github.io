@@ -6,8 +6,10 @@
 // Checks: the six nav pages answer 200 as HTML; each carries the shared nav (all six entries in order) and the
 // footer sentence verbatim (shared/chrome.mjs — the same definition stamp-chrome --check enforces locally);
 // no page references a non-same-origin script other than Cloudflare Web Analytics (DEPLOY.md §4 step 4, static part);
-// with --rpc: GET → 405 "POST only"; POST eth_chainId → 200 with result 0x2105 (Base); POST eth_sendRawTransaction
-// → 4xx (a disallowed method never reaches the upstream). Nothing printed is a key or an upstream URL.
+// with --rpc: GET → 405 "POST only"; GET <rpc>/health → 200 ok:true (bindings valid, one allowed + one rejected shape,
+// no upstream call); POST eth_chainId → 200 with result 0x2105 (Base); POST eth_sendRawTransaction → 4xx (a disallowed
+// method never reaches the upstream); POST an allowlisted contract with a disallowed selector → 400 / -32602
+// (Kin PR #1 finding 11). Nothing printed is a key or an upstream URL.
 import { FOOTER_SENTENCE, NAV, navHtml } from "../shared/chrome.mjs";
 
 const args = process.argv.slice(2);
@@ -60,6 +62,12 @@ if (rpc) {
     expect(c.status === 200 && j?.result === "0x2105", "eth_chainId → 0x2105 (Base)", `${c.status} ${j?.result ?? j?.error?.message ?? ""}`);
     const d = await post({ jsonrpc: "2.0", id: 2, method: "eth_sendRawTransaction", params: ["0x00"] });
     expect(d.status >= 400 && d.status < 500, "eth_sendRawTransaction → 4xx (disallowed method)", String(d.status));
+    const h = await fetch(rpc.replace(/\/$/, "") + "/health", { method: "GET", redirect: "manual" });
+    let hj = null; try { hj = await h.json(); } catch { hj = null; }
+    expect(h.status === 200 && hj?.ok === true && hj?.allowedShapeAccepted === true && hj?.rejectedShapeRefused === true, "GET /health → 200 ok (bindings valid; allowed + rejected shapes)", `${h.status} ${hj ? JSON.stringify(hj) : ""}`);
+    const x = await post({ jsonrpc: "2.0", id: 3, method: "eth_call", params: [{ to: "0x2fE08f304f1Af799Bc29E3D4E210973291d96702", data: "0xa9059cbb" }, "0x1"] });
+    let xj = null; try { xj = await x.json(); } catch { xj = null; }
+    expect(x.status === 400 && xj?.error?.code === -32602, "disallowed selector → 400 / -32602 (allowlist)", `${x.status} ${xj?.error?.message ?? ""}`);
   } catch (e) {
     bad("worker reachable", String(e));
   }

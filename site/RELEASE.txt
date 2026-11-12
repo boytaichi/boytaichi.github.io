@@ -1,4 +1,5 @@
-prospereum-site-rc1-2026-10-31
-built 2026-10-31T15:42:28.544Z
-workspace commit 54b7947
+prospereum-site-rc1
 contents: pages/ (six static pages, shared chrome, tests), worker/ (RPC proxy), DEPLOY.md
+commit: not recorded here — scripts/build-zip.mjs writes a RELEASE.txt into the zip with the exact `git rev-parse HEAD`
+of the tree it zipped (and "-dirty" if the checkout had uncommitted changes); the committed copy carries no commit line
+so it can never name a stale head (Kin PR #1 finding 12).
