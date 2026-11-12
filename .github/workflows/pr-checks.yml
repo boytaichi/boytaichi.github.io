@@ -40,7 +40,7 @@ jobs:
       - name: No unresolved placeholders in the published tree
         working-directory: site/pages
         run: |
-          if grep -rn --include=index.html -E '\[(today|contact address|link pending)[^]]*\]|class="pending"' . ; then echo "unresolved placeholder"; exit 1; fi
+          if grep -rni --include=index.html -E '\[(today|contact address|link pending)[^]]*\]|class="pending"|coming[ -]soon|\bTBD\b|\bTODO\b|lorem ipsum' . ; then echo "unresolved placeholder"; exit 1; fi
 
   worker:
     name: Worker — acceptance, manifest replay, hardening

@@ -51,6 +51,21 @@ test("every internal href / src / stylesheet on every page resolves to a file", 
   assert.deepEqual(missing, []);
 });
 
+/** Unresolved-placeholder patterns no published page may carry (the same list .github/workflows/pr-checks.yml greps for). */
+export const PLACEHOLDER_PATTERNS = [/\[(today|contact address|link pending)[^\]]*\]/i, /class="pending"/, /coming[\s-]soon/i, /\bTBD\b/, /\bTODO\b/, /lorem ipsum/i];
+
+test("no published page carries an unresolved placeholder (bracketed pending text, class=\"pending\", \"coming soon\", TBD/TODO) — Kin PR #1 addendum + round 2 finding 4", () => {
+  const hits = [];
+  for (const { file } of pageFiles) {
+    const html = readFileSync(file, "utf8");
+    for (const re of PLACEHOLDER_PATTERNS) {
+      const m = html.match(re);
+      if (m) hits.push(`${path.relative(root, file)}: ${m[0]}`);
+    }
+  }
+  assert.deepEqual(hits, []);
+});
+
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png" };
 
 /**

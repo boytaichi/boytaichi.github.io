@@ -39,5 +39,5 @@ Steps 1, 5 and the Worker route run as one command from `pages/`: `node scripts/
 
 - Treasury Safe **address** on the Token page (balance only) — Jason's decision (Site Copy decision 3).
 - Partner list on `/use/` is rendered from the pinned snapshot's `activeVaultCount` ("—" until a snapshot exists; the empty state at 0; the count otherwise) — a chain read, never typed (Kin finding 9).
-- Partners page: entry-deposit terms, the contact address and the Whitepaper / Partner Guide PDFs are not published yet; the page says so in neutral wording ("published when the first partner vault goes live", "Contact: coming soon") with no bracketed placeholders.
+- Partners page: entry-deposit terms, the contact address and the Whitepaper / Partner Guide PDFs are not published yet; the page says so in neutral wording ("published when the first partner vault goes live") with no bracketed placeholders and no "coming soon" (round 2 finding 4: `pr-checks.yml` and `test/site.test.mjs` both grep for it). No contact line is published until `partnerships@` has an MX (row 6).
 - The PSRE-native migration (Kin's batch; 7-day timelocks; Shu + Jason sign) changes contract addresses in `token/config.js` / `partners/config.js` only after it executes — a one-line config change per address, then the same verification.
