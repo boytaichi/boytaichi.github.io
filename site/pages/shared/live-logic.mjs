@@ -51,6 +51,17 @@ export function useStrip(d) {
   return `Partner vaults live ${live} · created all-time ${all} · Block ${d.snapshot.block.toLocaleString("en-US")}`;
 }
 
+/**
+ * "Live partners" line on the Use page, from the pinned snapshot's activeVaultCount (Kin PR #1 finding 9).
+ * No snapshot (null, or the getter did not decode) → a dash, never a claim; 0 → the empty state; N → the count.
+ */
+export function partnerListLine(d) {
+  const live = d && d.partnersLive !== undefined ? d.partnersLive : "—";
+  if (live === "—") return "—";
+  if (live === "0") return "No partner vault is live yet. The first brands appear here the week their vault goes live.";
+  return `${live} partner vault${live === "1" ? " is" : "s are"} live. The list, with each vault on BaseScan, is on the Partners & Developers page.`;
+}
+
 /** Snapshot caption shared by the live pages. */
 export function snapshotLine(d, endpoint, stale) {
   const t = new Date(d.snapshot.timestamp * 1000).toISOString();

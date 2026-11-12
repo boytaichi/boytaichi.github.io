@@ -1,62 +1,46 @@
 // prospereum.io — Partners & Developers page browser glue. Plain ES module, read-only, no cookies, no storage.
 // Live partner list per spec v4 §1 build rule: getAllVaults() filtered by vaultActive(vault); headline = activeVaultCount().
 // One eth_blockNumber per refresh; every eth_call pinned to that block; a failed refresh keeps the last snapshot.
-import { ADDR, BASESCAN, CHAIN_ID_HEX, CONTRACTS, ENDPOINTS, FACTORY_GETTERS, REFRESH_MS, VAULT_GETTERS } from "./config.js";
-import { decodeAddressArray, decodeBool, decodeUint, livePartnerList, partnersHeadline } from "./partners-logic.mjs";
+// Endpoint fallback (Kin PR #1 finding 3): the complete pinned-block snapshot is attempted per endpoint (shared/rpc.mjs).
+// Call shapes come from partners-logic.mjs (factoryCalls / vaultActiveCall / vaultCalls) — the same builders the Worker
+// integration test replays, so the page can only call what the Worker admits (finding 2).
+import { ADDR, BASESCAN, CHAIN_ID_HEX, CONTRACTS, ENDPOINTS, REFRESH_MS } from "./config.js";
+import { decodeAddressArray, decodeBool, decodeUint, factoryCalls, livePartnerList, partnersHeadline, vaultActiveCall, vaultCalls } from "./partners-logic.mjs";
+import { makeRpc, withFallback } from "../shared/rpc.mjs";
 
-let rpcId = 1;
 let last = null;
+const rpc = makeRpc((...a) => fetch(...a));
+const call = async (e, c) => (await rpc(e, "eth_call", [{ to: c.to, data: c.data }, c.blockTag])).result;
 
-async function rpc(endpoint, method, params) {
-  const res = await fetch(endpoint.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: rpcId++, method, params }) });
-  if (!res.ok) throw new Error(`${endpoint.name}: HTTP ${res.status}`);
-  const j = await res.json();
-  if (j.error) throw new Error(`${endpoint.name}: ${j.error.message || "rpc error"}`);
-  return j.result;
-}
-async function pickEndpoint() {
-  for (const e of ENDPOINTS) {
-    try {
-      if ((await rpc(e, "eth_chainId", [])) === CHAIN_ID_HEX) return e;
-    } catch (err) {
-      console.warn(String(err));
-    }
+/** The whole Partners page snapshot at one block through one endpoint; throws on any failed read. */
+async function snapshot(e) {
+  const { result: bn } = await rpc(e, "eth_blockNumber", []);
+  const f = {};
+  for (const c of factoryCalls(bn)) f[c.key] = await call(e, c);
+  const active = decodeUint(f.activeVaultCount);
+  const allTime = decodeUint(f.vaultCount);
+  const maxPartners = decodeUint(f.maxPartners);
+  let vaults = [];
+  if (allTime !== null && allTime > 0n) {
+    const all = decodeAddressArray(f.getAllVaults) ?? [];
+    const flags = [];
+    for (const v of all) flags.push(decodeBool(await call(e, vaultActiveCall(v, bn))) === true);
+    vaults = livePartnerList(all, flags);
   }
-  return null;
+  const rows = [];
+  for (const v of vaults) {
+    const r = {};
+    for (const c of vaultCalls(v, bn)) r[c.key] = decodeUint(await call(e, c));
+    rows.push({ vault: v, eco: r.ecosystemBalance, cvs: r.getCustomerVaultCount });
+  }
+  return { bn, active, allTime, maxPartners, rows };
 }
-const call = (e, to, data, block) => rpc(e, "eth_call", [{ to, data }, block]);
-const addrWord = (a) => a.slice(2).toLowerCase().padStart(64, "0");
 
 async function refresh() {
-  const e = await pickEndpoint();
-  if (!e) return fail("wrong network endpoint");
-  try {
-    const bn = await call_block(e);
-    const active = decodeUint(await call(e, ADDR.FACTORY, FACTORY_GETTERS.activeVaultCount, bn));
-    const allTime = decodeUint(await call(e, ADDR.FACTORY, FACTORY_GETTERS.vaultCount, bn));
-    const maxPartners = decodeUint(await call(e, ADDR.FACTORY, FACTORY_GETTERS.maxPartners, bn));
-    let vaults = [];
-    if (allTime !== null && allTime > 0n) {
-      const all = decodeAddressArray(await call(e, ADDR.FACTORY, FACTORY_GETTERS.getAllVaults, bn)) ?? [];
-      const flags = [];
-      for (const v of all) flags.push(decodeBool(await call(e, ADDR.FACTORY, FACTORY_GETTERS.vaultActive + addrWord(v), bn)) === true);
-      vaults = livePartnerList(all, flags);
-    }
-    const rows = [];
-    for (const v of vaults) {
-      const eco = decodeUint(await call(e, v, VAULT_GETTERS.ecosystemBalance, bn));
-      const cvs = decodeUint(await call(e, v, VAULT_GETTERS.getCustomerVaultCount, bn));
-      rows.push({ vault: v, eco, cvs });
-    }
-    last = { bn, active, allTime, maxPartners, rows, endpoint: e.name, at: new Date() };
-    render(last, false);
-  } catch (err) {
-    console.warn(String(err));
-    fail(String(err));
-  }
-}
-async function call_block(e) {
-  return rpc(e, "eth_blockNumber", []);
+  const got = await withFallback(ENDPOINTS, CHAIN_ID_HEX, rpc, snapshot, (m) => console.warn(m));
+  if (!got) return fail("no endpoint completed the snapshot");
+  last = { ...got.value, endpoint: got.endpoint.name, at: new Date() };
+  render(last, false);
 }
 
 const fmt18 = (x) => (x === null ? "—" : (x / 10n ** 18n).toLocaleString("en-US"));

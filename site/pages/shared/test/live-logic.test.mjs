@@ -1,7 +1,8 @@
 // Shared live-block logic for Overview / Protocol. Fixtures = the block 52,919,775 reads printed in spec v6.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { OVERVIEW_KEYS, PROTOCOL_KEYS, USE_KEYS, deriveSubset, keysForPage, overviewStrip, snapshotLine, subsetCalls, useStrip } from "../live-logic.mjs";
+import { OVERVIEW_KEYS, PROTOCOL_KEYS, USE_KEYS, deriveSubset, keysForPage, overviewStrip, partnerListLine, snapshotLine, subsetCalls, useStrip } from "../live-logic.mjs";
+import { classifyCall } from "../call-manifest.mjs";
 import { GETTERS } from "../../token/config.js";
 
 const u = (n) => "0x" + BigInt(n).toString(16).padStart(64, "0");
@@ -64,4 +65,16 @@ test("use page: USE_KEYS are spec v6 getters; keysForPage maps the data-live-key
   assert.equal(zero.treasury, "—");
   const some = deriveSubset({ activeVaultCount: u(3), vaultCount: u(5) }, SNAP);
   assert.equal(useStrip(some), "Partner vaults live 3 · created all-time 5 · Block 52,919,775");
+});
+
+test("use page partner line (Kin PR #1 finding 9) is rendered from the pinned snapshot: no snapshot → dash; 0 → empty state; N → count, no promise", () => {
+  assert.equal(partnerListLine(null), "—");
+  assert.equal(partnerListLine(deriveSubset({}, SNAP)), "—"); // getter did not decode → no claim
+  assert.equal(partnerListLine(deriveSubset({ activeVaultCount: u(0), vaultCount: u(0) }, SNAP)), "No partner vault is live yet. The first brands appear here the week their vault goes live.");
+  assert.equal(partnerListLine(deriveSubset({ activeVaultCount: u(1), vaultCount: u(1) }, SNAP)), "1 partner vault is live. The list, with each vault on BaseScan, is on the Partners & Developers page.");
+  assert.match(partnerListLine(deriveSubset({ activeVaultCount: u(3), vaultCount: u(5) }, SNAP)), /^3 partner vaults are live\./);
+});
+
+test("every call of every live page is a static pair in the shared manifest (the Worker admits exactly these)", () => {
+  for (const keys of [OVERVIEW_KEYS, PROTOCOL_KEYS, USE_KEYS]) for (const c of subsetCalls("0x1", keys)) assert.equal(classifyCall(c.to, c.data.slice(0, 10)), "static", c.key);
 });

@@ -1,56 +1,36 @@
 // prospereum.io — Token page browser glue (spec v6 §6). Plain ES module, no bundler, no cookies, no storage.
 // One eth_blockNumber per refresh; every eth_call pinned to that block; a failed refresh keeps the last snapshot ("Stale — …").
+// Endpoint fallback (Kin PR #1 finding 3): the complete pinned-block snapshot is attempted per endpoint; any rejected,
+// rate-limited, malformed or timed-out read falls through to the next endpoint (shared/rpc.mjs).
 import { ADDR, BASESCAN, CHAIN_ID_HEX, ENDPOINTS, REFRESH_MS } from "./config.js";
 import { buildCalls, derive, statusCopy } from "./token-logic.mjs";
+import { makeRpc, withFallback } from "../shared/rpc.mjs";
 
 let last = null; // last complete snapshot { d, endpoint }
-let rpcId = 1;
+const rpc = makeRpc((...a) => fetch(...a));
 
-async function rpc(endpoint, method, params) {
-  const res = await fetch(endpoint.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: rpcId++, method, params }) });
-  if (!res.ok) throw new Error(`${endpoint.name}: HTTP ${res.status}`);
-  const j = await res.json();
-  if (j.error) throw new Error(`${endpoint.name}: ${j.error.message || "rpc error"}`);
-  return { result: j.result, upstream: res.headers.get("X-Prospereum-Upstream") };
-}
-
-async function pickEndpoint() {
-  for (const e of ENDPOINTS) {
-    try {
-      const { result } = await rpc(e, "eth_chainId", []);
-      if (result === CHAIN_ID_HEX) return e;
-      console.warn(`${e.name}: wrong network endpoint (${result})`);
-    } catch (err) {
-      console.warn(String(err));
-    }
+/** The whole Token page snapshot at one block through one endpoint; throws on any failed read. */
+async function snapshot(endpoint) {
+  const { result: bn } = await rpc(endpoint, "eth_blockNumber", []);
+  const { result: block } = await rpc(endpoint, "eth_getBlockByNumber", [bn, false]);
+  const results = {};
+  let upstream = null;
+  // Sequential calls, one blockTag for all (§6). Multicall3 is optional and the proxy validates it inner by inner.
+  for (const c of buildCalls(bn)) {
+    const { result, upstream: up } = await rpc(endpoint, "eth_call", [{ to: c.to, data: c.data }, c.blockTag]);
+    results[c.key] = result;
+    if (up) upstream = up;
   }
-  return null;
+  return { d: derive(results, { block: Number(bn), timestamp: Number(block.timestamp) }), upstream };
 }
 
 async function refresh() {
-  const endpoint = await pickEndpoint();
-  if (!endpoint) return fail("wrong network endpoint");
-  try {
-    const { result: bn } = await rpc(endpoint, "eth_blockNumber", []);
-    const { result: block } = await rpc(endpoint, "eth_getBlockByNumber", [bn, false]);
-    const calls = buildCalls(bn);
-    const results = {};
-    let upstream = null;
-    // Sequential calls, one blockTag for all (§6). Multicall3 is optional and the proxy validates it inner by inner.
-    for (const c of calls) {
-      const { result, upstream: up } = await rpc(endpoint, "eth_call", [{ to: c.to, data: c.data }, c.blockTag]);
-      results[c.key] = result;
-      if (up) upstream = up;
-    }
-    const snapshot = { block: Number(bn), timestamp: Number(block.timestamp) };
-    const d = derive(results, snapshot);
-    if (d.reserveMismatch) console.warn("remainingEmission ≠ remainingMintable", d.reserveMismatch);
-    last = { d, endpoint: upstream ? `${endpoint.name} → ${upstream}` : endpoint.name };
-    render(last, false);
-  } catch (err) {
-    console.warn(String(err));
-    fail(null);
-  }
+  const got = await withFallback(ENDPOINTS, CHAIN_ID_HEX, rpc, snapshot, (m) => console.warn(m));
+  if (!got) return fail("no endpoint completed the snapshot");
+  const { endpoint, value: { d, upstream } } = got;
+  if (d.reserveMismatch) console.warn("remainingEmission ≠ remainingMintable", d.reserveMismatch);
+  last = { d, endpoint: upstream ? `${endpoint.name} → ${upstream}` : endpoint.name };
+  render(last, false);
 }
 
 function fail(reason) {

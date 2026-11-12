@@ -1,63 +1,46 @@
 // prospereum.io — shared browser glue for the Overview strip and the Protocol live block (read-only; spec v6 §6 rules).
 // Same endpoint order, chainId check, one eth_blockNumber per refresh, every eth_call pinned to that block, 60 s refresh,
 // "Stale — last successful snapshot" on failure. Pages declare their getters with `data-live-keys="overview|protocol|use"`.
+// Endpoint fallback (Kin PR #1 finding 3): the complete pinned-block snapshot is attempted per endpoint (shared/rpc.mjs).
 import { CHAIN_ID_HEX, ENDPOINTS, REFRESH_MS } from "../token/config.js";
-import { deriveSubset, keysForPage, overviewStrip, snapshotLine, subsetCalls, useStrip } from "./live-logic.mjs";
+import { deriveSubset, keysForPage, overviewStrip, partnerListLine, snapshotLine, subsetCalls, useStrip } from "./live-logic.mjs";
+import { makeRpc, withFallback } from "./rpc.mjs";
 
 let last = null;
-let rpcId = 1;
-
-async function rpc(endpoint, method, params) {
-  const res = await fetch(endpoint.url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: rpcId++, method, params }) });
-  if (!res.ok) throw new Error(`${endpoint.name}: HTTP ${res.status}`);
-  const j = await res.json();
-  if (j.error) throw new Error(`${endpoint.name}: ${j.error.message || "rpc error"}`);
-  return { result: j.result, upstream: res.headers.get("X-Prospereum-Upstream") };
-}
-
-async function pickEndpoint() {
-  for (const e of ENDPOINTS) {
-    try {
-      const { result } = await rpc(e, "eth_chainId", []);
-      if (result === CHAIN_ID_HEX) return e;
-      console.warn(`${e.name}: wrong network endpoint (${result})`);
-    } catch (err) {
-      console.warn(String(err));
-    }
-  }
-  return null;
-}
+const rpc = makeRpc((...a) => fetch(...a));
 
 function keysFor(root) {
   return keysForPage(root.dataset.liveKeys || "overview");
 }
 
-async function refresh(root) {
-  const endpoint = await pickEndpoint();
-  if (!endpoint) return fail(root, "wrong network endpoint");
-  try {
-    const { result: bn } = await rpc(endpoint, "eth_blockNumber", []);
-    const { result: block } = await rpc(endpoint, "eth_getBlockByNumber", [bn, false]);
-    const results = {};
-    let upstream = null;
-    for (const c of subsetCalls(bn, keysFor(root))) {
-      const { result, upstream: up } = await rpc(endpoint, "eth_call", [{ to: c.to, data: c.data }, c.blockTag]);
-      results[c.key] = result;
-      if (up) upstream = up;
-    }
-    const d = deriveSubset(results, { block: Number(bn), timestamp: Number(block.timestamp) });
-    last = { d, endpoint: upstream ? `${endpoint.name} → ${upstream}` : endpoint.name };
-    render(root, last, false);
-  } catch (err) {
-    console.warn(String(err));
-    fail(root, null);
+/** The page's subset snapshot at one block through one endpoint; throws on any failed read. */
+async function snapshot(endpoint, keys) {
+  const { result: bn } = await rpc(endpoint, "eth_blockNumber", []);
+  const { result: block } = await rpc(endpoint, "eth_getBlockByNumber", [bn, false]);
+  const results = {};
+  let upstream = null;
+  for (const c of subsetCalls(bn, keys)) {
+    const { result, upstream: up } = await rpc(endpoint, "eth_call", [{ to: c.to, data: c.data }, c.blockTag]);
+    results[c.key] = result;
+    if (up) upstream = up;
   }
+  return { d: deriveSubset(results, { block: Number(bn), timestamp: Number(block.timestamp) }), upstream };
+}
+
+async function refresh(root) {
+  const keys = keysFor(root);
+  const got = await withFallback(ENDPOINTS, CHAIN_ID_HEX, rpc, (e) => snapshot(e, keys), (m) => console.warn(m));
+  if (!got) return fail(root, "no endpoint completed the snapshot");
+  const { endpoint, value: { d, upstream } } = got;
+  last = { d, endpoint: upstream ? `${endpoint.name} → ${upstream}` : endpoint.name };
+  render(root, last, false);
 }
 
 function fail(root, reason) {
   if (last) return render(root, last, true);
   for (const el of root.querySelectorAll("[data-v]")) el.textContent = "—";
   for (const el of root.querySelectorAll("[data-snapshot]")) el.textContent = reason || "—";
+  for (const el of document.querySelectorAll("[data-partner-list]")) el.textContent = partnerListLine(null);
 }
 
 function render(root, { d, endpoint }, stale) {
@@ -72,6 +55,8 @@ function render(root, { d, endpoint }, stale) {
     else el.textContent = d[k] ?? "—";
   }
   for (const el of root.querySelectorAll("[data-snapshot]")) el.textContent = snapshotLine(d, endpoint, stale);
+  // Kin PR #1 finding 9: the partner empty state is rendered from the pinned snapshot (activeVaultCount), never hard-coded.
+  for (const el of document.querySelectorAll("[data-partner-list]")) el.textContent = partnerListLine(d);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
