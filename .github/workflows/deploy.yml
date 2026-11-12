@@ -25,13 +25,16 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      # Static site (site/pages): no build step, no npm install. See site/DEPLOY.md.
-      - name: Check shared nav/footer and copy drift
+      # Static site (site/pages): no build step, no npm install. See site/DEPLOY.md. Same gate as pr-checks.yml (Kin PR #1 finding 5).
+      - name: Check shared nav/footer, copy drift, every page test (incl. headless-Chrome site.test.mjs)
         working-directory: site/pages
         run: |
           node scripts/stamp-chrome.mjs --check
           node scripts/copy-drift.mjs
-          node --test token/test/token-logic.test.mjs partners/test/partners-logic.test.mjs shared/test/live-logic.test.mjs test/copy-drift.test.mjs
+          node --test token/test/token-logic.test.mjs partners/test/partners-logic.test.mjs shared/test/live-logic.test.mjs shared/test/rpc.test.mjs test/copy-drift.test.mjs test/site.test.mjs
+      - name: Worker tests (acceptance, page-manifest replay, hardening)
+        working-directory: site/worker
+        run: node --test test/*.test.mjs
       - name: Assemble Pages artifact (pages tree without tests/scripts; CNAME kept)
         run: |
           rsync -a --exclude 'test/' --exclude 'scripts/' --exclude 'README.md' site/pages/ dist/
