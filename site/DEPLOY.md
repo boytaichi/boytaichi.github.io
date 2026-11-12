@@ -21,6 +21,8 @@ Baselines: Site Decision Sheet v2 (25 Oct) rows 1, 2, 6, 7; Token Page Spec v6 �
 
 ### Preview gate (round 2 finding 3) — what CI proves, and what it cannot
 
+Every `pr-checks.yml` job checks out the **PR head SHA** (`ref: github.event.pull_request.head.sha`, falling back to `github.sha` on `workflow_dispatch`), never GitHub's synthetic `refs/pull/N/merge` ref, and asserts `git rev-parse HEAD` equals it before running anything (round 3 finding 2) — the log prints both; the preview gate's `--exact .` comparison is therefore against the commit under review.
+
 CI cannot deploy to Cloudflare: there is no API token in the repository's secrets, and the Pages project's output directory is Jason's A3 item. So the pre-merge gate serves the **exact checkout** itself. `.github/workflows/pr-checks.yml` job `preview` runs `node scripts/preview-gate.mjs` from `pages/` twice:
 
 1. `--worker shim` (offline, deterministic): `scripts/serve.mjs` serves `site/pages` from the checkout; `worker/scripts/stub-upstream.mjs` plays a Base node (fixed block `0x3276f9f`, echoes JSON-RPC ids); `worker/scripts/dev-shim.mjs` runs the Worker's exported `handle()` behind a Node HTTP server with `SITE_ORIGIN` = the served origin and `DEV_ALLOW_NO_RATE_LIMIT`.

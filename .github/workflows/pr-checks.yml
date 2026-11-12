@@ -1,4 +1,6 @@
-# Pre-merge release gate for the static site + RPC Worker (Kin PR #1 finding 5; round 2 findings 3, 4).
+# Pre-merge release gate for the static site + RPC Worker (Kin PR #1 finding 5; round 2 findings 3, 4; round 3 finding 2).
+# Every job checks out the PR HEAD SHA (round 3 finding 2) — not the synthetic refs/pull/N/merge ref — and asserts
+# `git rev-parse HEAD` equals it, so the tests and the exact-head preview gate run against the commit under review.
 # Runs on every pull request: shared chrome check, copy drift, every page test INCLUDING the headless-Chrome
 # integration test (test/site.test.mjs: six pages load with zero console errors, phone-width nav hit-test), and
 # the Worker suite (Kin's acceptance tests, the page-manifest replay, limits/bindings/upstream hardening), then the
@@ -27,6 +29,18 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Kin PR #1 round 3 finding 2: check out the PR HEAD commit, never GitHub's synthetic merge ref (refs/pull/N/merge).
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Checked-out HEAD is the PR head SHA (round 3 finding 2)
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          HEAD_SHA="$(git rev-parse HEAD)"
+          echo "checked-out HEAD: $HEAD_SHA"
+          echo "expected (PR head / github.sha): $EXPECTED_SHA"
+          test "$HEAD_SHA" = "$EXPECTED_SHA"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -52,6 +66,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Kin PR #1 round 3 finding 2: check out the PR HEAD commit, never GitHub's synthetic merge ref (refs/pull/N/merge).
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Checked-out HEAD is the PR head SHA (round 3 finding 2)
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          HEAD_SHA="$(git rev-parse HEAD)"
+          echo "checked-out HEAD: $HEAD_SHA"
+          echo "expected (PR head / github.sha): $EXPECTED_SHA"
+          test "$HEAD_SHA" = "$EXPECTED_SHA"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -68,14 +94,30 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Kin PR #1 round 3 finding 2: check out the PR HEAD commit, never GitHub's synthetic merge ref (refs/pull/N/merge).
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Checked-out HEAD is the PR head SHA (round 3 finding 2)
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          HEAD_SHA="$(git rev-parse HEAD)"
+          echo "checked-out HEAD: $HEAD_SHA"
+          echo "expected (PR head / github.sha): $EXPECTED_SHA"
+          test "$HEAD_SHA" = "$EXPECTED_SHA"
+          echo "HEAD_SHA=$HEAD_SHA" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Offline — pages from this checkout + Worker handle() behind a Node shim + stub upstream
+      - name: Offline — pages from this checkout (PR head SHA) + Worker handle() behind a Node shim + stub upstream
         working-directory: site/pages
-        run: node scripts/preview-gate.mjs --worker shim
+        run: |
+          echo "preview gate --exact against checkout $HEAD_SHA"
+          node scripts/preview-gate.mjs --worker shim
       - name: workerd — pages from this checkout + `wrangler dev --local` + stub upstream (npx fetches wrangler; no deploy, no token)
         working-directory: site/pages
         env:
           WRANGLER_SEND_METRICS: "false"
-        run: node scripts/preview-gate.mjs --worker wrangler --wrangler-timeout-ms 240000
+        run: |
+          echo "preview gate --exact against checkout $HEAD_SHA"
+          node scripts/preview-gate.mjs --worker wrangler --wrangler-timeout-ms 240000
