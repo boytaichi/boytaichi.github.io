@@ -78,3 +78,12 @@ test("use page partner line (Kin PR #1 finding 9) is rendered from the pinned sn
 test("every call of every live page is a static pair in the shared manifest (the Worker admits exactly these)", () => {
   for (const keys of [OVERVIEW_KEYS, PROTOCOL_KEYS, USE_KEYS]) for (const c of subsetCalls("0x1", keys)) assert.equal(classifyCall(c.to, c.data.slice(0, 10)), "static", c.key);
 });
+
+// Kin PR #1 round 2 finding 2: the subset calls inherit the Token page's result-word minimums.
+test("round 2 #2 — subsetCalls carry the result-word minimums of the Token manifest (Protocol: pendingUpgrade 1 word; Overview/Use: 1 word each)", () => {
+  for (const [which, keys] of [["protocol", PROTOCOL_KEYS], ["overview", OVERVIEW_KEYS], ["use", USE_KEYS]]) {
+    const calls = subsetCalls("0x1", keys);
+    assert.equal(calls.length, keys.length, which);
+    for (const c of calls) assert.equal(c.words, 1, `${which}.${c.key}`);
+  }
+});

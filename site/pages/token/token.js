@@ -1,26 +1,20 @@
 // prospereum.io — Token page browser glue (spec v6 §6). Plain ES module, no bundler, no cookies, no storage.
 // One eth_blockNumber per refresh; every eth_call pinned to that block; a failed refresh keeps the last snapshot ("Stale — …").
 // Endpoint fallback (Kin PR #1 finding 3): the complete pinned-block snapshot is attempted per endpoint; any rejected,
-// rate-limited, malformed or timed-out read falls through to the next endpoint (shared/rpc.mjs).
+// rate-limited, malformed, undecodable (round 2 #2) or timed-out read falls through to the next endpoint (shared/rpc.mjs).
 import { ADDR, BASESCAN, CHAIN_ID_HEX, ENDPOINTS, REFRESH_MS } from "./config.js";
 import { buildCalls, derive, statusCopy } from "./token-logic.mjs";
-import { makeRpc, withFallback } from "../shared/rpc.mjs";
+import { makeRpc, readCalls, withFallback } from "../shared/rpc.mjs";
 
 let last = null; // last complete snapshot { d, endpoint }
 const rpc = makeRpc((...a) => fetch(...a));
 
-/** The whole Token page snapshot at one block through one endpoint; throws on any failed read. */
+/** The whole Token page snapshot at one block through one endpoint; throws on any failed or undecodable read. */
 async function snapshot(endpoint) {
   const { result: bn } = await rpc(endpoint, "eth_blockNumber", []);
   const { result: block } = await rpc(endpoint, "eth_getBlockByNumber", [bn, false]);
-  const results = {};
-  let upstream = null;
-  // Sequential calls, one blockTag for all (§6). Multicall3 is optional and the proxy validates it inner by inner.
-  for (const c of buildCalls(bn)) {
-    const { result, upstream: up } = await rpc(endpoint, "eth_call", [{ to: c.to, data: c.data }, c.blockTag]);
-    results[c.key] = result;
-    if (up) upstream = up;
-  }
+  // Sequential calls, one blockTag for all (§6); every result must decode (round 2 #2) or the endpoint is abandoned.
+  const { results, upstream } = await readCalls(rpc, endpoint, buildCalls(bn));
   return { d: derive(results, { block: Number(bn), timestamp: Number(block.timestamp) }), upstream };
 }
 

@@ -1,10 +1,11 @@
 // prospereum.io — shared browser glue for the Overview strip and the Protocol live block (read-only; spec v6 §6 rules).
 // Same endpoint order, chainId check, one eth_blockNumber per refresh, every eth_call pinned to that block, 60 s refresh,
 // "Stale — last successful snapshot" on failure. Pages declare their getters with `data-live-keys="overview|protocol|use"`.
-// Endpoint fallback (Kin PR #1 finding 3): the complete pinned-block snapshot is attempted per endpoint (shared/rpc.mjs).
+// Endpoint fallback (Kin PR #1 finding 3): the complete pinned-block snapshot is attempted per endpoint (shared/rpc.mjs);
+// an undecodable getter result fails the snapshot for that endpoint (round 2 #2) — "—" only when every endpoint failed.
 import { CHAIN_ID_HEX, ENDPOINTS, REFRESH_MS } from "../token/config.js";
 import { deriveSubset, keysForPage, overviewStrip, partnerListLine, snapshotLine, subsetCalls, useStrip } from "./live-logic.mjs";
-import { makeRpc, withFallback } from "./rpc.mjs";
+import { makeRpc, readCalls, withFallback } from "./rpc.mjs";
 
 let last = null;
 const rpc = makeRpc((...a) => fetch(...a));
@@ -13,17 +14,11 @@ function keysFor(root) {
   return keysForPage(root.dataset.liveKeys || "overview");
 }
 
-/** The page's subset snapshot at one block through one endpoint; throws on any failed read. */
+/** The page's subset snapshot at one block through one endpoint; throws on any failed or undecodable read. */
 async function snapshot(endpoint, keys) {
   const { result: bn } = await rpc(endpoint, "eth_blockNumber", []);
   const { result: block } = await rpc(endpoint, "eth_getBlockByNumber", [bn, false]);
-  const results = {};
-  let upstream = null;
-  for (const c of subsetCalls(bn, keys)) {
-    const { result, upstream: up } = await rpc(endpoint, "eth_call", [{ to: c.to, data: c.data }, c.blockTag]);
-    results[c.key] = result;
-    if (up) upstream = up;
-  }
+  const { results, upstream } = await readCalls(rpc, endpoint, subsetCalls(bn, keys));
   return { d: deriveSubset(results, { block: Number(bn), timestamp: Number(block.timestamp) }), upstream };
 }
 

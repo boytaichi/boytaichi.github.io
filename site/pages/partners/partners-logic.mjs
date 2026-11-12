@@ -16,15 +16,17 @@ const FACTORY = ADDR.FACTORY.toLowerCase();
  *  factoryCalls      — the five factory getters the page reads before it knows any vault;
  *  vaultActiveCall   — factory.vaultActive(vault) for each address from getAllVaults();
  *  vaultCalls        — the per-vault PartnerVault getters for a live row.
+ * `words` = minimum ABI words the result must carry (round 2 #2): one for a uint/bool/address, two for the address[]
+ * head of getAllVaults() (offset + length; an empty list is exactly two words). Fewer → undecodable → next endpoint.
  */
 export function factoryCalls(blockTag) {
-  return ["activeVaultCount", "vaultCount", "maxPartners", "getAllVaults"].map((key) => ({ key, to: FACTORY, data: FACTORY_GETTERS[key], blockTag }));
+  return ["activeVaultCount", "vaultCount", "maxPartners", "getAllVaults"].map((key) => ({ key, to: FACTORY, data: FACTORY_GETTERS[key], blockTag, words: key === "getAllVaults" ? 2 : 1 }));
 }
 export function vaultActiveCall(vault, blockTag) {
-  return { key: "vaultActive", vault: vault.toLowerCase(), to: FACTORY, data: FACTORY_GETTERS.vaultActive + addrWord(vault), blockTag };
+  return { key: "vaultActive", vault: vault.toLowerCase(), to: FACTORY, data: FACTORY_GETTERS.vaultActive + addrWord(vault), blockTag, words: 1 };
 }
 export function vaultCalls(vault, blockTag) {
-  return Object.entries(VAULT_GETTERS).map(([key, selector]) => ({ key, vault: vault.toLowerCase(), to: vault.toLowerCase(), data: selector, blockTag }));
+  return Object.entries(VAULT_GETTERS).map(([key, selector]) => ({ key, vault: vault.toLowerCase(), to: vault.toLowerCase(), data: selector, blockTag, words: 1 }));
 }
 
 /** §1 build rule: the live partner list = getAllVaults() filtered by factory.vaultActive(vault) === true. */

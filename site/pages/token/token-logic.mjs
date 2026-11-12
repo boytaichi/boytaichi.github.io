@@ -4,11 +4,18 @@ import { ADDR, GETTERS } from "./config.js";
 
 const E18 = 10n ** 18n;
 
-/** Build the eth_call list for one refresh: every displayed getter, mutable and immutable, at the same blockTag (§6). */
+/**
+ * Minimum ABI words each getter returns (round 2 #2): the four queued-parameter getters return (value, readyAt) — two
+ * words, confirmed by a live read of Base at block 0x35f8d43 on 2026-11-12; every other getter returns one word
+ * (uint256 / bool / address). A result with fewer words is undecodable and fails the snapshot for that endpoint.
+ */
+export const RESULT_WORDS = Object.freeze({ pendingAlphaBase: 2, pendingE0: 2, pendingPartnerSplit: 2, pendingTierParams: 2 });
+
+/** Build the eth_call list for one refresh: every displayed getter, mutable and immutable, at the same blockTag (§6); `words` = minimum result words (round 2 #2). */
 export function buildCalls(blockTag) {
   return Object.entries(GETTERS).map(([key, [contract, selector, argAddr]]) => {
     const data = argAddr ? selector + ADDR[argAddr].toLowerCase().slice(2).padStart(64, "0") : selector;
-    return { key, to: ADDR[contract].toLowerCase(), data, blockTag };
+    return { key, to: ADDR[contract].toLowerCase(), data, blockTag, words: RESULT_WORDS[key] ?? 1 };
   });
 }
 

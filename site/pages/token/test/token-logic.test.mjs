@@ -83,3 +83,14 @@ test("emissions line and backlog sentence move with T() and the backlog; a rever
   assert.equal(f.lastFinalized, "none yet");
   assert.equal(f.backlog.count, 26);
 });
+
+// Kin PR #1 round 2 finding 2: every call carries the minimum ABI words its result must decode to (live-read on Base, block 0x35f8d43).
+test("round 2 #2 — buildCalls annotates result words: the four pending (value, readyAt) getters need 2, every other getter 1; derive reads exactly those words", () => {
+  const calls = buildCalls("0x1");
+  const two = calls.filter((c) => c.words === 2).map((c) => c.key).sort();
+  assert.deepEqual(two, ["pendingAlphaBase", "pendingE0", "pendingPartnerSplit", "pendingTierParams"]);
+  assert.ok(calls.filter((c) => c.words === 1).length === calls.length - 4);
+  assert.ok(calls.every((c) => Number.isInteger(c.words) && c.words >= 1));
+  // the fixture used throughout this file matches the annotation: one word per key, two for the pending getters
+  for (const c of calls) assert.equal((live[c.key].length - 2) / 64, c.words, c.key);
+});

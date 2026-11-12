@@ -88,3 +88,16 @@ test("call builders (Kin PR #1 finding 2): factory reads, vaultActive(vault) and
   for (const c of v) assert.equal(classifyCall(c.to, c.data), "vault", c.key);
   assert.ok(STATIC_ALLOWLIST[ADDR.FACTORY.toLowerCase()].has(FACTORY_GETTERS.getAllVaults));
 });
+
+// Kin PR #1 round 2 finding 2: result-word minimums on every Partners call (the page refuses a snapshot that does not decode).
+test("round 2 #2 — factory / vaultActive / vault calls carry result-word minimums: getAllVaults needs the two head words (an empty list), the rest one", () => {
+  const f = factoryCalls("0x1");
+  assert.deepEqual(Object.fromEntries(f.map((c) => [c.key, c.words])), { activeVaultCount: 1, vaultCount: 1, maxPartners: 1, getAllVaults: 2 });
+  assert.equal(vaultActiveCall("0x" + "aa".repeat(20), "0x1").words, 1);
+  for (const c of vaultCalls("0x" + "aa".repeat(20), "0x1")) assert.equal(c.words, 1, c.key);
+  // an empty address[] is exactly two words (offset 0x20, length 0) — decodes to []; one word is undecodable (null)
+  const empty = "0x" + (32).toString(16).padStart(64, "0") + "0".repeat(64);
+  assert.deepEqual(decodeAddressArray(empty), []);
+  assert.equal(decodeAddressArray("0x" + (32).toString(16).padStart(64, "0")), null);
+  assert.equal(decodeUint("0x"), null);
+});
