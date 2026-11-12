@@ -94,3 +94,50 @@ test("round 2 #2 — buildCalls annotates result words: the four pending (value,
   // the fixture used throughout this file matches the annotation: one word per key, two for the pending getters
   for (const c of calls) assert.equal((live[c.key].length - 2) / 64, c.words, c.key);
 });
+
+// --- Kin PR #1 round 3 finding 1: types come from the shared manifest; derive decodes bool / address canonically -------
+import { RESULT_WORDS, addressWord, boolWord } from "../token-logic.mjs";
+import { RETURN_TYPES } from "../../shared/call-manifest.mjs";
+
+test("round 3 #1 — buildCalls carries the manifest's return types; RESULT_WORDS derives from them; the live fixture is canonical for every type", () => {
+  const calls = buildCalls("0x1");
+  for (const c of calls) {
+    assert.deepEqual(c.types, RETURN_TYPES.token[c.key], c.key);
+    assert.equal(c.words, c.types.length, c.key);
+    assert.equal(RESULT_WORDS[c.key], c.types.length, c.key);
+  }
+  assert.deepEqual(RETURN_TYPES.token.poolFee, ["uint24"]);
+  // every key of the fixture is the canonical encoding of its declared type (bool 0/1, address high bytes zero, uint24 fits)
+  const w = (hex, i = 0) => hex.slice(2 + 64 * i, 2 + 64 * (i + 1));
+  for (const c of calls) {
+    c.types.forEach((t, i) => {
+      const word = w(live[c.key], i);
+      if (t === "bool") assert.match(word, /^0{63}[01]$/, c.key);
+      if (t === "address") assert.match(word, /^0{24}/, c.key);
+      if (t === "uint24") assert.match(word, /^0{58}/, c.key);
+    });
+  }
+});
+
+test("round 3 #1 — derive: a bool word of 0x02 and an address word with dirty high bytes render as — / none, never as true / an address", () => {
+  const u64 = (n) => "0x" + BigInt(n).toString(16).padStart(64, "0");
+  assert.equal(boolWord(u64(0)), false);
+  assert.equal(boolWord(u64(1)), true);
+  assert.equal(boolWord(u64(2)), null);
+  assert.equal(boolWord("0x01" + u64(1).slice(4)), null);
+  assert.equal(boolWord("0x"), null);
+  assert.equal(addressWord(u64(0)), "0x" + "0".repeat(40));
+  assert.equal(addressWord("0x" + "aa".repeat(20).padStart(64, "0")), "0x" + "aa".repeat(20));
+  assert.equal(addressWord("0xff" + "aa".repeat(20).padStart(62, "0")), null);
+  assert.equal(addressWord("0x"), null);
+  const d = derive({ ...live, psrePaused: u64(2), enginePaused: "0x01" + u64(0).slice(4), firstEpochFinalized: u64(3), pendingUpgrade: "0xff" + "aa".repeat(20).padStart(62, "0") }, SNAP);
+  assert.equal(d.transfers, "—");
+  assert.equal(d.engineStatus, "—");
+  assert.equal(d.upgrade, "none"); // a non-canonical address never renders as a pending implementation
+  assert.notEqual(d.lastFinalized, "none yet"); // firstEpochFinalized unreadable → never the "none yet" claim (the snapshot gate in rpc.mjs rejects it before derive anyway)
+  // canonical values still render
+  const ok = derive({ ...live, psrePaused: u64(0), enginePaused: u64(1), pendingUpgrade: "0x" + "aa".repeat(20).padStart(64, "0") }, SNAP);
+  assert.equal(ok.transfers, "normal");
+  assert.equal(ok.engineStatus, "paused");
+  assert.match(ok.upgrade, /^0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa from /);
+});

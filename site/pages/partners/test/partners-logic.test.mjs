@@ -101,3 +101,25 @@ test("round 2 #2 — factory / vaultActive / vault calls carry result-word minim
   assert.equal(decodeAddressArray("0x" + (32).toString(16).padStart(64, "0")), null);
   assert.equal(decodeUint("0x"), null);
 });
+
+// --- Kin PR #1 round 3 finding 1: types from the shared manifest; address[] / bool decoded canonically only --------------
+import { RETURN_TYPES } from "../../shared/call-manifest.mjs";
+
+test("round 3 #1 — factory / vaultActive / vault calls carry the manifest's return types; decodeAddressArray and decodeBool accept canonical encodings only", () => {
+  const V = "0x" + "aa".repeat(20);
+  for (const c of factoryCalls("0x1")) assert.deepEqual(c.types, RETURN_TYPES.factory[c.key], c.key);
+  assert.deepEqual(vaultActiveCall(V, "0x1").types, ["bool"]);
+  for (const c of vaultCalls(V, "0x1")) assert.deepEqual(c.types, RETURN_TYPES.vault[c.key], c.key);
+  assert.deepEqual(factoryCalls("0x1").find((c) => c.key === "getAllVaults").types, ["address[]"]);
+  const w = (n) => n.toString(16).padStart(64, "0");
+  const addr = (a) => a.slice(2).toLowerCase().padStart(64, "0");
+  assert.deepEqual(decodeAddressArray("0x" + w(32) + w(1) + addr(V)), [V]);
+  assert.equal(decodeAddressArray("0x" + w(64) + w(0) + w(0)), null, "offset 0x40");
+  assert.equal(decodeAddressArray("0x" + w(32) + w(1) + addr(V) + w(0)), null, "trailing word");
+  assert.equal(decodeAddressArray("0x" + w(32) + w(2) + addr(V)), null, "length word says 2, one element");
+  assert.equal(decodeAddressArray("0x" + w(32) + w(1) + "ff" + addr(V).slice(2)), null, "dirty element");
+  assert.equal(decodeBool("0x" + w(2)), null);
+  assert.equal(decodeBool("0x01" + w(1).slice(2)), null);
+  assert.equal(decodeBool("0x" + w(1)), true);
+  assert.equal(decodeBool("0x" + w(0)), false);
+});

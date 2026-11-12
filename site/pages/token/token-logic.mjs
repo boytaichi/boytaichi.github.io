@@ -1,21 +1,23 @@
 // prospereum.io — Token page pure logic (spec v6 §3–§6). No DOM, no network: testable with `node --test`.
 // The browser glue (token.js) builds the call list here, runs it at one pinned block, and renders what `derive` returns.
 import { ADDR, GETTERS } from "./config.js";
+import { RETURN_TYPES, resultWordsOf } from "../shared/call-manifest.mjs";
 
 const E18 = 10n ** 18n;
 
 /**
- * Minimum ABI words each getter returns (round 2 #2): the four queued-parameter getters return (value, readyAt) — two
- * words, confirmed by a live read of Base at block 0x35f8d43 on 2026-11-12; every other getter returns one word
- * (uint256 / bool / address). A result with fewer words is undecodable and fails the snapshot for that endpoint.
+ * Minimum ABI words each getter returns (round 2 #2), derived from the manifest's return types (round 3 #1): the four
+ * queued-parameter getters return (value, readyAt) — two words; every other getter one word (uint256 / uint24 / bool /
+ * address). The return types themselves travel on each call as `types`, and shared/rpc.mjs accepts a result only when
+ * it is their canonical encoding; a short, long or non-canonical result is undecodable and fails the snapshot.
  */
-export const RESULT_WORDS = Object.freeze({ pendingAlphaBase: 2, pendingE0: 2, pendingPartnerSplit: 2, pendingTierParams: 2 });
+export const RESULT_WORDS = Object.freeze(Object.fromEntries(Object.keys(GETTERS).map((key) => [key, resultWordsOf("token", key)])));
 
-/** Build the eth_call list for one refresh: every displayed getter, mutable and immutable, at the same blockTag (§6); `words` = minimum result words (round 2 #2). */
+/** Build the eth_call list for one refresh: every displayed getter, mutable and immutable, at the same blockTag (§6); `types` = declared return types (round 3 #1), `words` = their minimum word count (round 2 #2). */
 export function buildCalls(blockTag) {
   return Object.entries(GETTERS).map(([key, [contract, selector, argAddr]]) => {
     const data = argAddr ? selector + ADDR[argAddr].toLowerCase().slice(2).padStart(64, "0") : selector;
-    return { key, to: ADDR[contract].toLowerCase(), data, blockTag, words: RESULT_WORDS[key] ?? 1 };
+    return { key, to: ADDR[contract].toLowerCase(), data, blockTag, types: RETURN_TYPES.token[key], words: RESULT_WORDS[key] };
   });
 }
 
@@ -23,6 +25,19 @@ export function buildCalls(blockTag) {
 export function word(hex, i = 0) {
   if (!hex || hex === "0x" || hex.length < 2 + 64 * (i + 1)) return null;
   return BigInt("0x" + hex.slice(2 + 64 * i, 2 + 64 * (i + 1)));
+}
+
+/** Decode a bool word canonically (round 3 #1): 0 → false, 1 → true, anything else (or missing) → null, never "truthy". */
+export function boolWord(hex, i = 0) {
+  const v = word(hex, i);
+  return v === 0n ? false : v === 1n ? true : null;
+}
+
+/** Decode an address word canonically (round 3 #1): the upper 12 bytes must be zero, else null. */
+export function addressWord(hex, i = 0) {
+  if (!hex || hex === "0x" || hex.length < 2 + 64 * (i + 1)) return null;
+  const w = hex.slice(2 + 64 * i, 2 + 64 * (i + 1)).toLowerCase();
+  return /^0{24}[0-9a-f]{40}$/.test(w) ? "0x" + w.slice(24) : null;
 }
 
 /** ÷ 1e18 with thousands separators; `decimals` fractional digits (0 = whole PSRE). */
@@ -70,7 +85,7 @@ export function backlog(currentEpochId, lastFinalizedEpoch, firstEpochFinalized)
 /** Everything the page shows, derived from raw results `r` (key → hex) plus the snapshot block + timestamp. */
 export function derive(r, snapshot) {
   const u = (k, i = 0) => word(r[k], i);
-  const b = (k) => (u(k) === null ? null : u(k) !== 0n);
+  const b = (k) => boolWord(r[k]);
   const T = u("T");
   const partner = u("partnerSplit");
   const remEm = u("remainingEmission");
@@ -82,7 +97,7 @@ export function derive(r, snapshot) {
   const bl = curEpoch === null ? null : backlog(curEpoch, u("lastFinalizedEpoch") ?? 0n, first);
   const epochStart = curEpoch !== null && dur !== null && genesis !== null ? genesis + curEpoch * dur : null;
   const epochEnd = epochStart !== null ? epochStart + dur : null;
-  const pendUp = r.pendingUpgrade ? "0x" + r.pendingUpgrade.slice(-40) : null;
+  const pendUp = addressWord(r.pendingUpgrade);
   const queued = [];
   for (const [k, label] of [["pendingAlphaBase", "base rate"], ["pendingE0", "epoch ceiling"], ["pendingPartnerSplit", "partner share"], ["pendingTierParams", "tier thresholds and multipliers"]]) {
     const readyAt = u(k, 1);

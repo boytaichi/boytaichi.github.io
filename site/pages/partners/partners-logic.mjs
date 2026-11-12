@@ -3,6 +3,8 @@
 // (PSRE 18 decimals, USDC 6 decimals).
 
 import { ADDR, FACTORY_GETTERS, VAULT_GETTERS } from "./config.js";
+import { RETURN_TYPES, resultWordsOf } from "../shared/call-manifest.mjs";
+import { decodeCanonicalAddressArray } from "../shared/abi.mjs";
 
 export const PSRE_DECIMALS = 18n;
 export const USDC_DECIMALS = 6n;
@@ -16,17 +18,18 @@ const FACTORY = ADDR.FACTORY.toLowerCase();
  *  factoryCalls      — the five factory getters the page reads before it knows any vault;
  *  vaultActiveCall   — factory.vaultActive(vault) for each address from getAllVaults();
  *  vaultCalls        — the per-vault PartnerVault getters for a live row.
- * `words` = minimum ABI words the result must carry (round 2 #2): one for a uint/bool/address, two for the address[]
- * head of getAllVaults() (offset + length; an empty list is exactly two words). Fewer → undecodable → next endpoint.
+ * `types` = the getter's declared return types from the shared manifest (round 3 #1) and `words` = their minimum word
+ * count (round 2 #2): one for a uint/bool/address, two for the address[] head of getAllVaults() (offset + length; an
+ * empty list is exactly two words). A result that is not the canonical encoding of `types` → undecodable → next endpoint.
  */
 export function factoryCalls(blockTag) {
-  return ["activeVaultCount", "vaultCount", "maxPartners", "getAllVaults"].map((key) => ({ key, to: FACTORY, data: FACTORY_GETTERS[key], blockTag, words: key === "getAllVaults" ? 2 : 1 }));
+  return ["activeVaultCount", "vaultCount", "maxPartners", "getAllVaults"].map((key) => ({ key, to: FACTORY, data: FACTORY_GETTERS[key], blockTag, types: RETURN_TYPES.factory[key], words: resultWordsOf("factory", key) }));
 }
 export function vaultActiveCall(vault, blockTag) {
-  return { key: "vaultActive", vault: vault.toLowerCase(), to: FACTORY, data: FACTORY_GETTERS.vaultActive + addrWord(vault), blockTag, words: 1 };
+  return { key: "vaultActive", vault: vault.toLowerCase(), to: FACTORY, data: FACTORY_GETTERS.vaultActive + addrWord(vault), blockTag, types: RETURN_TYPES.factory.vaultActive, words: resultWordsOf("factory", "vaultActive") };
 }
 export function vaultCalls(vault, blockTag) {
-  return Object.entries(VAULT_GETTERS).map(([key, selector]) => ({ key, vault: vault.toLowerCase(), to: vault.toLowerCase(), data: selector, blockTag, words: 1 }));
+  return Object.entries(VAULT_GETTERS).map(([key, selector]) => ({ key, vault: vault.toLowerCase(), to: vault.toLowerCase(), data: selector, blockTag, types: RETURN_TYPES.vault[key], words: resultWordsOf("vault", key) }));
 }
 
 /** §1 build rule: the live partner list = getAllVaults() filtered by factory.vaultActive(vault) === true. */
@@ -86,29 +89,19 @@ export function pct18(x) {
   return `${whole}.${frac.toString().padStart(2, "0")}%`;
 }
 
-/** Decodes a uint256 / bool / address eth_call result. */
+/** Decodes a uint256 / bool / address eth_call result (first word). */
 export function decodeUint(hex) {
   if (typeof hex !== "string" || !/^0x[0-9a-fA-F]*$/.test(hex) || hex.length < 66) return null;
   return BigInt(hex.slice(0, 66));
 }
+/** Canonical bool (round 3 #1): 0 → false, 1 → true, any other word → null (never "truthy"). */
 export function decodeBool(hex) {
   const v = decodeUint(hex);
-  return v === null ? null : v === 1n;
+  return v === 0n ? false : v === 1n ? true : null;
 }
-/** address[] ABI decoding: offset word, length word, then one word per address. */
+/** address[] ABI decoding, canonical only (round 3 #1): offset word 0x20, length word L, exactly L address words with zero high bytes; else null. */
 export function decodeAddressArray(hex) {
-  if (typeof hex !== "string" || !hex.startsWith("0x") || (hex.length - 2) % 64 !== 0 || hex.length < 130) return null;
-  const words = [];
-  for (let i = 2; i < hex.length; i += 64) words.push(hex.slice(i, i + 64));
-  const offset = Number(BigInt("0x" + words[0])) / 32;
-  const len = Number(BigInt("0x" + words[offset]));
-  const out = [];
-  for (let i = 0; i < len; i++) {
-    const w = words[offset + 1 + i];
-    if (!w) return null;
-    out.push("0x" + w.slice(24));
-  }
-  return out;
+  return decodeCanonicalAddressArray(hex);
 }
 
 /** §1 copy rule for the headline: live count from activeVaultCount(), never vaultCount(). */
