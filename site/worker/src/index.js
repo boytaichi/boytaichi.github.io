@@ -32,7 +32,9 @@
  *      response id === the id we sent, exactly one of result/error, error = { integer code, string message }),
  *      per-method result validation, fixed public error messages; an envelope mismatch is 502 and never cached;
  *      nothing from the upstream reaches a response except a validated result or a sanitised error.
- *  Request envelope (round 2 #7): `jsonrpc` must be "2.0" (-32600 otherwise).
+ *  Request envelope (round 2 #7; round 3 #4): `jsonrpc` must be "2.0" and the envelope may carry ONLY `jsonrpc`,
+ *      `id`, `method`, `params` (any other member → -32600); `params` must be absent or an array — absent only for the
+ *      no-param methods; an object / string / number / null `params` → -32602 (never coerced to []).
  *  Allowlist rejection → HTTP 400 with JSON-RPC -32602 (Kin #11: DEPLOY.md aligned to this).
  *  Kin #1 (2026-10-25): JSON-RPC batches are rejected (one request per call).
  */
@@ -126,6 +128,10 @@ export function validateEnv(env) {
 }
 
 // --- request validation ---------------------------------------------------------------------------------------
+/** The only members a JSON-RPC 2.0 request envelope may carry (round 3 #4): anything else is -32600. */
+const REQUEST_MEMBERS = new Set(["jsonrpc", "id", "method", "params"]);
+const NO_PARAM_METHODS = new Set(["eth_chainId", "eth_blockNumber"]);
+
 /**
  * Validate one JSON-RPC request. Returns { ok: true, normalized, vaultTargets } or { ok: false, error }.
  * `vaultTargets` lists dynamic PartnerVault addresses that still need factory verification (handle() does that).
@@ -136,8 +142,13 @@ export function validateRequest(req) {
   const { id, method, params } = req;
   if (id !== undefined && id !== null && typeof id !== "number" && !(typeof id === "string" && id.length <= 64)) return { ok: false, error: rpcError(null, JSONRPC_INVALID_REQUEST, "id must be a number or a short string") };
   if (req.jsonrpc !== "2.0") return { ok: false, error: rpcError(id, JSONRPC_INVALID_REQUEST, 'jsonrpc must be "2.0"') }; // round 2 #7
+  for (const k of Object.keys(req)) if (!REQUEST_MEMBERS.has(k)) return { ok: false, error: rpcError(id, JSONRPC_INVALID_REQUEST, `request member not accepted: ${k.slice(0, 32)}`) }; // round 3 #4
   if (typeof method !== "string" || !ALLOWED_METHODS.has(method)) return { ok: false, error: rpcError(id, JSONRPC_METHOD_NOT_FOUND, "method not allowed") };
-  const p = Array.isArray(params) ? params : [];
+  // Round 3 #4: params is absent (no-param methods only) or an array; anything else is -32602, never coerced to [].
+  const hasParams = Object.prototype.hasOwnProperty.call(req, "params");
+  if (hasParams && !Array.isArray(params)) return { ok: false, error: rpcError(id, JSONRPC_INVALID_PARAMS, "params must be an array") };
+  if (!hasParams && !NO_PARAM_METHODS.has(method)) return { ok: false, error: rpcError(id, JSONRPC_INVALID_PARAMS, `${method} needs params`) };
+  const p = hasParams ? params : [];
 
   if (method === "eth_chainId" || method === "eth_blockNumber") {
     if (p.length !== 0) return { ok: false, error: rpcError(id, JSONRPC_INVALID_PARAMS, `${method} takes no params`) };

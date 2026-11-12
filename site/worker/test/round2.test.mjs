@@ -197,12 +197,16 @@ test("round 2 #8 — a multibyte body whose UTF-16 length is under 64 KiB but wh
   const r = await handle(req(multibyte), env, deps);
   assert.equal(r.status, 413);
   assert.equal((await r.json()).error.message, PUBLIC_ERRORS.BODY_TOO_LARGE);
-  // exactly at the limit in bytes (with 2-byte characters) → accepted; one more byte → 413
+  // exactly at the limit in bytes (with 2-byte characters) → read in full and parsed (the `pad` member is then refused by
+  // the round 3 #4 envelope rule with -32600 — proof the body got past the size gate, not a 413); one more byte → 413
   const room = LIMITS.MAX_BODY_BYTES - overhead; // bytes available for the pad
   const exact = frame("é".repeat(Math.floor(room / 2)) + (room % 2 ? "a" : ""));
   assert.equal(Buffer.byteLength(exact, "utf8"), LIMITS.MAX_BODY_BYTES);
   const okRes = await handle(req(exact), env, deps);
-  assert.equal(okRes.status, 200);
+  assert.equal(okRes.status, 400);
+  const parsed = await okRes.json();
+  assert.equal(parsed.error.code, -32600);
+  assert.match(parsed.error.message, /request member not accepted: pad/);
   const over = frame("é".repeat(Math.floor(room / 2)) + (room % 2 ? "aa" : "a"));
   assert.equal(Buffer.byteLength(over, "utf8"), LIMITS.MAX_BODY_BYTES + 1);
   assert.equal((await handle(req(over), env, deps)).status, 413);
