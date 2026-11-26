@@ -4,7 +4,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PAGES, stamp } from "../shared/chrome.mjs";
+import { PAGES, STANDALONE, stamp } from "../shared/chrome.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const check = process.argv.includes("--check");
@@ -13,6 +13,19 @@ for (const [dir, href] of Object.entries(PAGES)) {
   const file = path.join(root, dir, "index.html");
   const before = readFileSync(file, "utf8");
   const after = stamp(before, href);
+  if (after !== before) {
+    changed++;
+    if (check) console.error(`chrome drift: ${path.relative(root, file)}`);
+    else {
+      writeFileSync(file, after);
+      console.log(`stamped ${path.relative(root, file)}`);
+    }
+  }
+}
+// Standalone pages outside PAGES (no nav entry, no aria-current): the branded 404 that GitHub Pages serves for unknown paths.
+for (const file of STANDALONE.map((f) => path.join(root, f))) {
+  const before = readFileSync(file, "utf8");
+  const after = stamp(before, null);
   if (after !== before) {
     changed++;
     if (check) console.error(`chrome drift: ${path.relative(root, file)}`);
