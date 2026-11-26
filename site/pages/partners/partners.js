@@ -57,7 +57,7 @@ function render(s, stale) {
   list.replaceChildren();
   if (s.rows.length === 0) {
     const li = document.createElement("li");
-    li.className = "muted";
+    li.className = "muted prose"; // prose, not the monospace address font (site QA 2026-11-25 R2)
     li.textContent = "No partner vault is live yet. Prospereum went live on 22 April 2026, and the first partner integrations are being built now.";
     list.append(li);
   }
@@ -89,13 +89,17 @@ function renderContracts() {
     a.rel = "noopener";
     a.textContent = "BaseScan";
     const tdName = document.createElement("td");
+    tdName.dataset.label = "Contract"; // data-label feeds the stacked phone layout (site QA 2026-11-25 R1)
     tdName.textContent = c.name;
     const tdAddr = document.createElement("td");
     tdAddr.className = "mono";
+    tdAddr.dataset.label = "Address";
     tdAddr.textContent = addr;
     const tdSrc = document.createElement("td");
+    tdSrc.dataset.label = "Source on BaseScan";
     tdSrc.textContent = c.source;
     const tdLink = document.createElement("td");
+    tdLink.dataset.label = "Explorer";
     tdLink.append(a);
     tr.append(tdName, tdAddr, tdSrc, tdLink);
     tb.append(tr);

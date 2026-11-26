@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Proof of Prosperity — Prospereum</title>
 <meta name="description" content="How PSRE is earned: new PSRE is released only when a brand's customers, together, hold more PSRE than they ever have before.">
+<link rel="canonical" href="https://prospereum.io/protocol/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Prospereum">
+<meta property="og:title" content="Proof of Prosperity — Prospereum">
+<meta property="og:description" content="How PSRE is earned: new PSRE is released only when a brand's customers, together, hold more PSRE than they ever have before.">
+<meta property="og:url" content="https://prospereum.io/protocol/">
+<meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="../site.css">
 </head>
 <body>
@@ -62,7 +70,10 @@
 
 <section>
 <h2>Rules nobody can change</h2>
-<p>The 21 million cap, the 12.6 million reserve, new PSRE only from verified commerce growth. Adjustable parameters (base rate, tier thresholds, weekly ceiling, minimum entry) sit behind a 48-hour timelock; upgrades behind 7 days.</p>
+<!-- Site Copy v1 §2.4 "Rules nobody can change" listed "minimum entry" among the timelocked parameters; the source says otherwise
+     (S_MIN is a constant in PartnerVaultFactory at the audited commit 31eb313; psreMin is owner-set via setPsreMin() with no
+     timelock on main), and the Token and Partners pages already say so. Site QA 2026-11-25, A6. -->
+<p>The 21 million cap, the 12.6 million reserve, new PSRE only from verified commerce growth. Adjustable parameters (base rate, tier thresholds, weekly ceiling) sit behind a 48-hour timelock; upgrades behind 7 days. The entry minimum is a constant in the live contracts; under the PSRE-native version the Founder Safe sets it, without a timelock.</p>
 </section>
 </main>
 
