@@ -20,6 +20,26 @@ code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;word-break:break-all}
 .tag{display:inline-block;font-size:.72rem;padding:1px 6px;border:1px solid var(--line);border-radius:999px;color:var(--muted);margin-left:4px}
 table.stats td.mono{width:auto}
+p code,li code{overflow-wrap:anywhere}
+/* Contracts table (site QA 2026-11-25 R1): explicit column widths, horizontal cell spacing, header cells on one line;
+   below 640px each row stacks as labelled lines and the address wraps at most once. */
+#contracts th,#contracts td{padding-right:14px}
+#contracts th:last-child,#contracts td:last-child{padding-right:0}
+#contracts thead th{width:auto;white-space:nowrap}
+#contracts th:first-child{width:24%}
+#contracts th:nth-child(3){width:21%}
+#contracts th:nth-child(4){width:11%}
+#contracts td.mono{word-break:normal;overflow-wrap:anywhere}
+ul.addresses li.prose{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:1rem;word-break:normal}
+@media (max-width:640px){
+  #contracts thead{display:none}
+  #contracts tr{display:block;padding:8px 0;border-bottom:1px solid var(--line)}
+  #contracts td{display:block;padding:2px 0;border:0;width:auto}
+  #contracts td::before{content:attr(data-label) ": ";color:var(--muted)}
+  #contracts td:first-child{font-weight:600}
+  #contracts td:first-child::before{content:none}
+  #contracts td.mono{font-size:.78rem}
+}
 ol.flow li{margin:8px 0}
 </style>
 </head>
@@ -31,11 +51,12 @@ ol.flow li{margin:8px 0}
 
 <main>
 <section id="where">
-<h1 id="headline">Partners, announced as they launch.</h1>
+<h1>Partners &amp; Developers</h1>
 <p class="lede">Every brand on Prospereum rewards its customers in the same PSRE. What you earned in one place works in the next, and a balance you move to your own wallet works anywhere on Base.</p>
 <p class="snapshot" data-snapshot>—</p>
 
-<h2>Live partners</h2>
+<!-- Live headline rendered by partners.js from the pinned snapshot (partnersHeadline): "… None live yet." at 0, "N partners live on Base." otherwise. -->
+<h2 id="headline">Partners, announced as they launch.</h2>
 <p>Brands appear here the moment their PartnerVault goes live on the chain, with a link to the vault on BaseScan. Live now: <strong id="activeCount">—</strong> <small>(all-time vaults created, including decommissioned: <span id="allTime">—</span>; partner cap <span id="maxPartners">—</span>)</small></p>
 <ul id="partners" class="addresses"><li class="muted">—</li></ul>
 
@@ -52,7 +73,7 @@ ol.flow li{margin:8px 0}
 </section>
 
 <section id="developers">
-<h1>Two vaults, one number.</h1>
+<h2>Two vaults, one number.</h2>
 <p><strong>The vault model in plain words.</strong> A PartnerVault is a brand's account with the protocol: a contract the brand creates once, funds, and uses to hold PSRE and hand it out as rewards. A CustomerVault is a customer's balance inside that brand's world: a small contract the brand's backend creates the first time it rewards that customer. The customer can claim control of it at any moment by naming a wallet address; that is one action. Who may make that claim depends on how the balance was created: a customer whose wallet address was recorded as the intended customer at creation may claim directly; a balance the brand's app manages, created with no intended customer (<code>address(0)</code>), can only be claimed by the brand's PartnerVault owner, on the customer's behalf and to the address the customer names. Withdrawing PSRE from it to that wallet is a second, separate action, taken whenever the customer chooses. The brand pays the gas for both vaults; the customer never needs a wallet to use the app.</p>
 <p>The protocol watches one number per brand: PSRE held in the PartnerVault plus PSRE held in all of its CustomerVaults, counted only through flows the contracts themselves track. That number has an all-time high. Every week, if the number beats its high, the protocol releases new PSRE to the brand; if it does not, nothing happens and the high stands. PSRE that leaves those contracts, whether a customer withdraws it to a personal wallet or the brand transfers it out, lowers the number but never the high. Reward PSRE the protocol itself released is excluded from the next reading, so rewards cannot feed on themselves.</p>
 <p><strong>What a brand commits to.</strong> An entry deposit at the protocol minimum, which earns nothing and sets the baseline; gas for its own vaults; and its own reward rules, which the protocol does not set. The protocol commits to a fixed cap of 21 million PSRE, a 12.6 million reserve that opens only through verified growth, a 48-hour timelock on the four queued reward-parameter groups (base rate; epoch ceiling; partner share; and the tier group of thresholds and multipliers), and a 7-day timelock on contract upgrades. Other settings — the partner cap, the fee-tier whitelist, the entry minimum under the PSRE-native version, the staker-pool split, and pausing — are set by the governance multisig without a timelock. Source verification on BaseScan is listed per contract below.</p>
