@@ -42,7 +42,9 @@ function link(addr) {
 }
 
 function render({ d, endpoint }, stale) {
-  const set = (k, v) => { const el = document.querySelector(`[data-v="${k}"]`); if (el) el.textContent = v; };
+  // Every span carrying the key is filled: a key can appear twice on the page (epochEnd, lpSplit) and the first match
+  // alone left the second at "—" beside a live number (site QA 2026-11-25, A1).
+  const set = (k, v) => { for (const el of document.querySelectorAll(`[data-v="${k}"]`)) el.textContent = v; };
   for (const k of ["totalSupply", "released", "maxSupply", "reserveRemaining", "reserveSize", "treasury", "founder", "partnersLive", "vaultsAllTime", "poolBalance", "poolFee", "partnerShare", "stakerShare", "psreSplit", "lpSplit", "staked", "scarcityCap", "epoch", "epochDuration", "epochStart", "epochEnd", "lastFinalized", "engineStatus", "transfers", "upgrade"]) set(k, d[k]);
   set("backlog", d.backlog ? (d.backlog.count === 0 ? "0, up to date" : String(d.backlog.count)) : "—");
   set("backlogRange", d.backlog && d.backlog.range ? `epochs ${d.backlog.range[0]}–${d.backlog.range[1]}` : "");

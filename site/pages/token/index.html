@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PSRE token — Prospereum</title>
 <meta name="description" content="PSRE supply mechanics and protocol state, read live from Base.">
+<link rel="canonical" href="https://prospereum.io/token/">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Prospereum">
+<meta property="og:title" content="PSRE token — Prospereum">
+<meta property="og:description" content="PSRE supply mechanics and protocol state, read live from Base.">
+<meta property="og:url" content="https://prospereum.io/token/">
+<meta name="twitter:card" content="summary">
 <link rel="stylesheet" href="../site.css">
 </head>
 <body>
@@ -66,7 +74,7 @@
 <section>
 <h2>Governance</h2>
 <p>Governance and upgrades: a 2-of-3 multisig (Gnosis Safe) that owns the RewardEngine, the factory and the StakingVault. Treasury and liquidity: a 2-of-3 multisig.</p>
-<p>Four queued parameter groups — base rate, epoch ceiling, partner share, and the tier thresholds and multipliers — take effect <span data-v="paramTimelock">—</span> after they are queued, and a queued change can be cancelled before it applies.</p>
+<p>Four queued parameter groups — base rate, epoch ceiling, partner share, and the tier thresholds and multipliers — take effect <span data-v="paramTimelock">—</span> after they are queued, and a queued change can be canceled before it applies.</p>
 <p>Other settings — the partner cap, the fee-tier whitelist, the entry minimum under the PSRE-native version, the staker-pool split, and pausing — are set by the Founder Safe and take effect immediately, without a timelock.</p>
 <p>Upgrades to the RewardEngine take effect <span data-v="upgradeTimelock">—</span> after they are scheduled. Under the PSRE-native version, replacing the partner-vault factory is a second step with its own, subsequent 7-day delay, so a full migration passes two timelocks in sequence. The PSRE token contract itself is not upgradeable.</p>
 <p>The 21 million cap and the 12.6 million reserve are constants in the contracts.</p>

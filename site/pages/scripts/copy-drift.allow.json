@@ -13,5 +13,10 @@
     "page": "use/index.html",
     "sentence": "Want your brand on it? partnerships@prospereum.io.",
     "reason": "Site Decision Sheet v2 row 6: partnerships@ has no MX and is not published until it exists; the page says 'Want your brand on it? See Partners & Developers.'"
+  },
+  {
+    "page": "about/index.html",
+    "sentence": "Use it with any Prospereum partner, or trade it on a decentralised exchange.",
+    "reason": "Site QA 2026-11-25 C1: one spelling convention (US, matching the contract terms finalizeEpoch / finalization) — the page says 'decentralized'; wording otherwise verbatim"
   }
 ]

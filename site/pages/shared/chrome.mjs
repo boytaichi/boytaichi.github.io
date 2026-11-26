@@ -26,6 +26,9 @@ export const PAGES = {
   about: "/about/",
 };
 
+/** Pages that carry the shared chrome but are not nav entries (stamped with no aria-current): the branded 404 page. */
+export const STANDALONE = ["404.html"];
+
 export function navHtml(currentHref) {
   const links = NAV.map(([href, label]) => (href === currentHref ? `<a href="${href}" aria-current="page">${label}</a>` : `<a href="${href}">${label}</a>`)).join("");
   return `<nav>${links}</nav>`;
