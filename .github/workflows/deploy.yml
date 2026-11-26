@@ -38,7 +38,7 @@ jobs:
       - name: Assemble Pages artifact (pages tree without tests/scripts; CNAME kept)
         run: |
           rsync -a --exclude 'test/' --exclude 'scripts/' --exclude 'README.md' site/pages/ dist/
-          cp public/CNAME dist/CNAME
+          if [ -f public/CNAME ]; then cp public/CNAME dist/CNAME; fi   # production repo only; the staging mirror has no CNAME
           find dist -type f | sort
       - uses: actions/upload-pages-artifact@v3
         with:
